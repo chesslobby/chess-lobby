@@ -1,0 +1,141 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Platform {
+  web
+  android
+  ios
+}
+
+enum GameResult {
+  checkmate
+  stalemate
+  resign
+  timeout
+  draw
+  abandoned
+}
+
+enum RoomType {
+  public
+  private
+  friend
+}
+
+enum FriendshipStatus {
+  pending
+  accepted
+  declined
+  blocked
+}
+
+model User {
+  id           String   @id @default(uuid())
+  username     String   @unique @db.VarChar(30)
+  email        String?  @unique
+  passwordHash String?
+  avatarUrl    String?
+  eloRating    Int      @default(1200)
+  gamesPlayed  Int      @default(0)
+  gamesWon     Int      @default(0)
+  gamesDraw    Int      @default(0)
+  isGuest      Boolean  @default(false)
+  platform     Platform @default(web)
+  createdAt    DateTime @default(now())
+  lastSeen     DateTime @default(now())
+
+  gamesAsWhite   Game[]         @relation("WhitePlayer")
+  gamesAsBlack   Game[]         @relation("BlackPlayer")
+  sentRequests   Friendship[]   @relation("SentRequests")
+  receivedRequests Friendship[] @relation("ReceivedRequests")
+  chatMessages   ChatMessage[]
+  notifications  Notification[]
+  eloHistory     EloHistory[]
+  spectating     Spectator[]
+}
+
+model Game {
+  id             String     @id @default(uuid())
+  whitePlayer    User       @relation("WhitePlayer", fields: [whitePlayerId], references: [id])
+  whitePlayerId  String
+  blackPlayer    User       @relation("BlackPlayer", fields: [blackPlayerId], references: [id])
+  blackPlayerId  String
+  winnerId       String?
+  result         GameResult?
+  pgn            String     @db.Text
+  fen            String     @default("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
+  timeControl    Int        @default(600)
+  roomType       RoomType   @default(public)
+  roomCode       String?    @db.VarChar(6)
+  whiteEloBefore Int
+  blackEloBefore Int
+  eloChangeWhite Int        @default(0)
+  eloChangeBlack Int        @default(0)
+  isRated        Boolean    @default(true)
+  createdAt      DateTime   @default(now())
+  endedAt        DateTime?
+
+  chatMessages ChatMessage[]
+  spectators   Spectator[]
+}
+
+model Friendship {
+  id         String           @id @default(uuid())
+  sender     User             @relation("SentRequests", fields: [senderId], references: [id])
+  senderId   String
+  receiver   User             @relation("ReceivedRequests", fields: [receiverId], references: [id])
+  receiverId String
+  status     FriendshipStatus @default(pending)
+  createdAt  DateTime         @default(now())
+
+  @@unique([senderId, receiverId])
+}
+
+model ChatMessage {
+  id         String   @id @default(uuid())
+  game       Game?    @relation(fields: [gameId], references: [id])
+  gameId     String?
+  sender     User     @relation(fields: [senderId], references: [id])
+  senderId   String
+  message    String   @db.Text
+  type       String   @default("text")
+  isLobby    Boolean  @default(false)
+  sentAt     DateTime @default(now())
+}
+
+model Spectator {
+  id       String   @id @default(uuid())
+  game     Game     @relation(fields: [gameId], references: [id])
+  gameId   String
+  user     User     @relation(fields: [userId], references: [id])
+  userId   String
+  joinedAt DateTime @default(now())
+
+  @@unique([gameId, userId])
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  user      User     @relation(fields: [userId], references: [id])
+  userId    String
+  type      String
+  data      Json
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model EloHistory {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  elo        Int
+  change     Int
+  gameId     String?
+  recordedAt DateTime @default(now())
+}

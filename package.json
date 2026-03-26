@@ -1,0 +1,27 @@
+{
+  "name": "royal-chess",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Royal Chess — Cross-platform chess with voice & chat",
+  "scripts": {
+    "dev": "turbo run dev",
+    "dev:web": "turbo run dev --filter=@royal-chess/web",
+    "dev:server": "turbo run dev --filter=@royal-chess/server",
+    "dev:mobile": "turbo run dev --filter=@royal-chess/mobile",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "type-check": "turbo run type-check",
+    "clean": "turbo run clean && rm -rf node_modules",
+    "format": "prettier --write \"**/*.{ts,tsx,js,jsx,json,md}\""
+  },
+  "devDependencies": {
+    "turbo": "^2.0.0",
+    "prettier": "^3.2.0",
+    "typescript": "^5.4.0"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "engines": {
+    "node": ">=18.0.0",
+    "pnpm": ">=9.0.0"
+  }
+}

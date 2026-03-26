@@ -1,0 +1,146 @@
+{
+  "folders": [
+    { "name": "👑 ROOT", "path": "." },
+    { "name": "🌐 Web (Next.js)", "path": "apps/web" },
+    { "name": "⚙️  Server (Fastify)", "path": "apps/server" },
+    { "name": "📱 Mobile (Expo)", "path": "apps/mobile" },
+    { "name": "♟  Chess Engine", "path": "packages/chess-engine" },
+    { "name": "🔧 Config", "path": "packages/config" }
+  ],
+  "settings": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode",
+    "editor.formatOnSave": true,
+    "editor.codeActionsOnSave": {
+      "source.fixAll.eslint": "explicit"
+    },
+    "editor.tabSize": 2,
+    "editor.rulers": [100],
+    "typescript.preferences.importModuleSpecifier": "relative",
+    "typescript.updateImportsOnFileMove.enabled": "always",
+    "files.exclude": {
+      "**/node_modules": true,
+      "**/.turbo": true,
+      "**/.next": true,
+      "**/dist": true
+    },
+    "search.exclude": {
+      "**/node_modules": true,
+      "**/.next": true,
+      "**/dist": true,
+      "**/.turbo": true
+    },
+    "tailwindCSS.includeLanguages": {
+      "typescript": "javascript",
+      "typescriptreact": "javascript"
+    },
+    "prisma.showPrismaDataPlatformNotification": false,
+    "terminal.integrated.env.linux": {},
+    "terminal.integrated.env.osx": {},
+    "terminal.integrated.env.windows": {}
+  },
+  "extensions": {
+    "recommendations": [
+      "esbenp.prettier-vscode",
+      "dbaeumer.vscode-eslint",
+      "bradlc.vscode-tailwindcss",
+      "Prisma.prisma",
+      "ms-vscode.vscode-typescript-next",
+      "msjsdiag.vscode-react-native",
+      "rangav.vscode-thunder-client",
+      "eamodio.gitlens",
+      "formulahendry.auto-rename-tag",
+      "christian-kohler.path-intellisense",
+      "streetsidesoftware.code-spell-checker",
+      "expo.vscode-expo-tools",
+      "ZixuanChen.vitest-explorer",
+      "yoavbls.pretty-ts-errors"
+    ]
+  },
+  "launch": {
+    "configurations": [
+      {
+        "type": "node",
+        "request": "launch",
+        "name": "🚀 Debug Server",
+        "runtimeExecutable": "pnpm",
+        "runtimeArgs": ["--filter=@royal-chess/server", "run", "dev"],
+        "cwd": "${workspaceFolder:👑 ROOT}",
+        "console": "integratedTerminal",
+        "skipFiles": ["<node_internals>/**"]
+      }
+    ],
+    "compounds": [
+      {
+        "name": "🎮 Run All (Web + Server)",
+        "configurations": ["🚀 Debug Server"]
+      }
+    ]
+  },
+  "tasks": {
+    "version": "2.0.0",
+    "tasks": [
+      {
+        "label": "🌐 Start Web",
+        "type": "shell",
+        "command": "pnpm dev:web",
+        "group": "build",
+        "presentation": { "panel": "dedicated", "group": "devServers" },
+        "problemMatcher": []
+      },
+      {
+        "label": "⚙️  Start Server",
+        "type": "shell",
+        "command": "pnpm dev:server",
+        "group": "build",
+        "presentation": { "panel": "dedicated", "group": "devServers" },
+        "problemMatcher": []
+      },
+      {
+        "label": "📱 Start Mobile",
+        "type": "shell",
+        "command": "pnpm dev:mobile",
+        "group": "build",
+        "presentation": { "panel": "dedicated", "group": "devServers" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🎮 Start Everything",
+        "dependsOn": ["🌐 Start Web", "⚙️  Start Server"],
+        "group": { "kind": "build", "isDefault": true },
+        "problemMatcher": []
+      },
+      {
+        "label": "🗄️  DB Push (Prisma)",
+        "type": "shell",
+        "command": "pnpm --filter=@royal-chess/server run db:push",
+        "group": "none",
+        "presentation": { "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🔍 DB Studio (Prisma)",
+        "type": "shell",
+        "command": "pnpm --filter=@royal-chess/server run db:studio",
+        "group": "none",
+        "presentation": { "panel": "dedicated" },
+        "problemMatcher": []
+      },
+      {
+        "label": "📦 Install All Deps",
+        "type": "shell",
+        "command": "pnpm install",
+        "group": "none",
+        "presentation": { "panel": "shared" },
+        "problemMatcher": []
+      },
+      {
+        "label": "🧹 Clean All",
+        "type": "shell",
+        "command": "pnpm clean",
+        "group": "none",
+        "presentation": { "panel": "shared" },
+        "problemMatcher": []
+      }
+    ]
+  }
+}

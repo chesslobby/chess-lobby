@@ -1,0 +1,26 @@
+{
+  "expo": {
+    "name": "Royal Chess",
+    "slug": "royal-chess",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "dark",
+    "scheme": "royal-chess",
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#1a2e4a"
+      },
+      "package": "com.royalchess.app",
+      "googleServicesFile": "./google-services.json"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-notifications",
+      ["react-native-google-mobile-ads", {
+        "androidAppId": "ca-app-pub-xxxxxxxxxxxxxxxx~xxxxxxxxxx"
+      }]
+    ]
+  }
+}

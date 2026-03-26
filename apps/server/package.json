@@ -1,0 +1,35 @@
+{
+  "name": "@royal-chess/server",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "type-check": "tsc --noEmit",
+    "db:generate": "prisma generate",
+    "db:migrate": "prisma migrate dev",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio"
+  },
+  "dependencies": {
+    "@royal-chess/chess-engine": "workspace:*",
+    "@royal-chess/config": "workspace:*",
+    "@fastify/cors": "^9.0.0",
+    "@fastify/jwt": "^8.0.0",
+    "@fastify/rate-limit": "^9.0.0",
+    "@prisma/client": "^5.10.0",
+    "fastify": "^4.26.0",
+    "socket.io": "^4.7.0",
+    "ioredis": "^5.3.0",
+    "bcryptjs": "^2.4.3",
+    "zod": "^3.22.0"
+  },
+  "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
+    "@types/node": "^20.11.0",
+    "prisma": "^5.10.0",
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0"
+  }
+}
