@@ -30,7 +30,7 @@ export async function registerGameRoutes(fastify: FastifyInstance) {
       include: {
         whitePlayer: { select: { username: true, eloRating: true, avatarUrl: true } },
         blackPlayer: { select: { username: true, eloRating: true, avatarUrl: true } },
-        chatMessages: { orderBy: { createdAt: 'asc' }, include: { sender: { select: { username: true } } } },
+        chatMessages: { orderBy: { sentAt: 'asc' }, include: { sender: { select: { username: true } } } },
       },
     })
     if (!game) return reply.status(404).send({ error: 'Game not found' })

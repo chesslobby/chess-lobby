@@ -13,7 +13,7 @@ export async function registerUserRoutes(fastify: FastifyInstance) {
       where: { isGuest: false },
       orderBy: { eloRating: 'desc' },
       take: 100,
-      select: { id: true, username: true, eloRating: true, gamesPlayed: true, gamesWon: true, avatarUrl: true, country: true },
+      select: { id: true, username: true, eloRating: true, gamesPlayed: true, gamesWon: true, avatarUrl: true },
     })
     return reply.send({ users })
   })
@@ -23,7 +23,7 @@ export async function registerUserRoutes(fastify: FastifyInstance) {
     const { username } = req.params as { username: string }
     const user = await prisma.user.findUnique({
       where: { username },
-      select: { id: true, username: true, eloRating: true, gamesPlayed: true, gamesWon: true, gamesDrawn: true, avatarUrl: true, createdAt: true, platform: true },
+      select: { id: true, username: true, eloRating: true, gamesPlayed: true, gamesWon: true, gamesDraw: true, avatarUrl: true, createdAt: true, platform: true },
     })
     if (!user) return reply.status(404).send({ error: 'User not found' })
     return reply.send({ user })

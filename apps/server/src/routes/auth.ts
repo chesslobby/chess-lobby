@@ -24,7 +24,7 @@ function signToken(userId: string, username: string, isGuest: boolean) {
   return jwt.sign(
     { userId, username, isGuest },
     process.env.JWT_SECRET!,
-    { expiresIn: process.env.JWT_EXPIRES_IN ?? '7d' }
+    { expiresIn: (process.env.JWT_EXPIRES_IN || '7d') as any }
   )
 }
 
@@ -32,25 +32,30 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
 
   // ── Register ───────────────────────────────────────────────
   fastify.post('/register', async (req, reply) => {
-    const parsed = RegisterSchema.safeParse(req.body)
-    if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
+    try {
+      const parsed = RegisterSchema.safeParse(req.body)
+      if (!parsed.success) return reply.status(400).send({ error: parsed.error.flatten() })
 
-    const { username, email, password } = parsed.data
+      const { username, email, password } = parsed.data
 
-    const exists = await prisma.user.findFirst({
-      where: { OR: [{ email }, { username }] },
-    })
-    if (exists) {
-      return reply.status(409).send({ error: 'Username or email already taken' })
+      const exists = await prisma.user.findFirst({
+        where: { OR: [{ email }, { username }] },
+      })
+      if (exists) {
+        return reply.status(409).send({ error: 'Username or email already taken' })
+      }
+
+      const passwordHash = await bcrypt.hash(password, 12)
+      const user = await prisma.user.create({
+        data: { username, email, passwordHash },
+      })
+
+      const token = signToken(user.id, user.username, false)
+      return reply.status(201).send({ token, user: safeUser(user) })
+    } catch (err: any) {
+      console.error('Register error:', err)
+      return reply.status(500).send({ error: err.message || 'Unknown error' })
     }
-
-    const passwordHash = await bcrypt.hash(password, 12)
-    const user = await prisma.user.create({
-      data: { username, email, passwordHash },
-    })
-
-    const token = signToken(user.id, user.username, false)
-    return reply.status(201).send({ token, user: safeUser(user) })
   })
 
   // ── Login ──────────────────────────────────────────────────

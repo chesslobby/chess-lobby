@@ -14,7 +14,7 @@ export function registerSpectateHandlers(io: Server, socket: Socket) {
 
     await prisma.spectator.upsert({
       where: { gameId_userId: { gameId, userId } },
-      update: { leftAt: null },
+      update: {},
       create: { gameId, userId },
     })
 
@@ -22,7 +22,7 @@ export function registerSpectateHandlers(io: Server, socket: Socket) {
     io.to(gameId).emit('spectate:viewer-joined', { username })
 
     // Send current spectator count
-    const count = await prisma.spectator.count({ where: { gameId, leftAt: null } })
+    const count = await prisma.spectator.count({ where: { gameId } })
     io.to(gameId).emit('spectate:count', { count })
   })
 
@@ -45,11 +45,8 @@ export function registerSpectateHandlers(io: Server, socket: Socket) {
 async function leaveSpectate(io: Server, socket: Socket, gameId: string, userId: string) {
   socket.leave(`spectate:${gameId}`)
 
-  await prisma.spectator.updateMany({
-    where: { gameId, userId, leftAt: null },
-    data: { leftAt: new Date() },
-  })
+  await prisma.spectator.deleteMany({ where: { gameId, userId } })
 
-  const count = await prisma.spectator.count({ where: { gameId, leftAt: null } })
+  const count = await prisma.spectator.count({ where: { gameId } })
   io.to(gameId).emit('spectate:count', { count })
 }

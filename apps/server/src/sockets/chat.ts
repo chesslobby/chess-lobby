@@ -41,7 +41,7 @@ export function registerChatHandlers(io: Server, socket: Socket) {
       senderName: username,
       message: sanitized,
       type,
-      timestamp: saved.createdAt.getTime(),
+      timestamp: saved.sentAt.getTime(),
     })
   })
 
@@ -58,6 +58,7 @@ export function registerChatHandlers(io: Server, socket: Socket) {
         senderId: userId,
         message: sanitized,
         type: 'text',
+        isLobby: true,
       },
     })
 

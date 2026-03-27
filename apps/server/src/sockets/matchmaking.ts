@@ -4,7 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { Server, Socket } from 'socket.io'
-import { generateRoomCode } from 'chess-engine'
+import { generateRoomCode } from '@royal-chess/chess-engine'
 import { prisma } from '../db/client'
 
 // In-memory matchmaking queue per time control
@@ -215,6 +215,7 @@ async function createGame(
       whiteEloBefore: white.eloRating,
       blackEloBefore: black.eloRating,
       roomType,
+      pgn: '',
     },
   })
 }

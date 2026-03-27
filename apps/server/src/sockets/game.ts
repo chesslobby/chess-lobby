@@ -5,8 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { Server, Socket } from 'socket.io'
-import { Chess } from 'chess.js'
-import { calculateElo } from 'chess-engine'
+import { Chess, calculateElo } from '@royal-chess/chess-engine'
 import { prisma } from '../db/client'
 
 interface ActiveGame {
@@ -93,7 +92,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
   })
 
   // ── Offer draw ─────────────────────────────────────────────
-  socket.on('game:offer-draw', ({ gameId }: { gameId: string }) => {
+  socket.on('game:draw-offer', ({ gameId }: { gameId: string }) => {
     const game = activeGames.get(gameId)
     if (!game) return
 
@@ -243,14 +242,10 @@ async function endGame(
 
   if (!whiteUser || !blackUser) return
 
-  const whiteResult = winnerId === game.whiteId ? 'win' : winnerId === null ? 'draw' : 'loss'
-  const blackResult = winnerId === game.blackId ? 'win' : winnerId === null ? 'draw' : 'loss'
+  const eloResult = winnerId === game.whiteId ? 'white' : winnerId === null ? 'draw' : 'black'
 
-  const { newElo: newWhiteElo, change: whiteChange } = calculateElo(
-    whiteUser.eloRating, blackUser.eloRating, whiteResult, whiteUser.gamesPlayed
-  )
-  const { newElo: newBlackElo, change: blackChange } = calculateElo(
-    blackUser.eloRating, whiteUser.eloRating, blackResult, blackUser.gamesPlayed
+  const { newWhiteElo, newBlackElo, whiteChange, blackChange } = calculateElo(
+    whiteUser.eloRating, blackUser.eloRating, eloResult, whiteUser.gamesPlayed, blackUser.gamesPlayed
   )
 
   const pgn = game.chess.pgn() || game.pgn.join(' ')
@@ -264,7 +259,6 @@ async function endGame(
         winnerId,
         pgn,
         fen: game.chess.fen(),
-        totalMoves: game.chess.history().length,
         eloChangeWhite: whiteChange,
         eloChangeBlack: blackChange,
         endedAt: new Date(),
@@ -276,7 +270,7 @@ async function endGame(
         eloRating: newWhiteElo,
         gamesPlayed: { increment: 1 },
         gamesWon: winnerId === game.whiteId ? { increment: 1 } : undefined,
-        gamesDrawn: winnerId === null ? { increment: 1 } : undefined,
+        gamesDraw: winnerId === null ? { increment: 1 } : undefined,
       },
     }),
     prisma.user.update({
@@ -285,7 +279,7 @@ async function endGame(
         eloRating: newBlackElo,
         gamesPlayed: { increment: 1 },
         gamesWon: winnerId === game.blackId ? { increment: 1 } : undefined,
-        gamesDrawn: winnerId === null ? { increment: 1 } : undefined,
+        gamesDraw: winnerId === null ? { increment: 1 } : undefined,
       },
     }),
     prisma.eloHistory.createMany({

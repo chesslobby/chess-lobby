@@ -35,7 +35,7 @@ export function registerVoiceHandlers(io: Server, socket: Socket) {
 
   // ── Relay WebRTC offer ─────────────────────────────────────
   socket.on('voice:offer', ({ gameId, toUserId, offer }: {
-    gameId: string; toUserId: string; offer: RTCSessionDescriptionInit
+    gameId: string; toUserId: string; offer: any
   }) => {
     const room = voiceRooms.get(gameId)
     const targetSocketId = room?.get(toUserId)
@@ -49,7 +49,7 @@ export function registerVoiceHandlers(io: Server, socket: Socket) {
 
   // ── Relay WebRTC answer ────────────────────────────────────
   socket.on('voice:answer', ({ gameId, toUserId, answer }: {
-    gameId: string; toUserId: string; answer: RTCSessionDescriptionInit
+    gameId: string; toUserId: string; answer: any
   }) => {
     const room = voiceRooms.get(gameId)
     const targetSocketId = room?.get(toUserId)
@@ -63,7 +63,7 @@ export function registerVoiceHandlers(io: Server, socket: Socket) {
 
   // ── Relay ICE candidate ────────────────────────────────────
   socket.on('voice:ice', ({ gameId, toUserId, candidate }: {
-    gameId: string; toUserId: string; candidate: RTCIceCandidateInit
+    gameId: string; toUserId: string; candidate: any
   }) => {
     const room = voiceRooms.get(gameId)
     const targetSocketId = room?.get(toUserId)
