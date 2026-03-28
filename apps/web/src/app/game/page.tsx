@@ -109,6 +109,9 @@ export default function GamePage() {
   const [showLeftPanel, setShowLeftPanel] = useState(true)
   const [showChatDrawer, setShowChatDrawer] = useState(false)
 
+  // Connection status
+  const [socketConnected, setSocketConnected] = useState(false)
+
   // Voice state
   const [voiceState, setVoiceState]   = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle')
   const [isMuted, setIsMuted]         = useState(false)
@@ -186,6 +189,7 @@ export default function GamePage() {
     setClocks({ w: initialMs, b: initialMs })
 
     const socket = getSocket()
+    setSocketConnected(socket.connected)
 
     // Emit immediately (socket may already be connected)
     socket.emit('game:ready', { gameId: info.gameId })
@@ -194,8 +198,11 @@ export default function GamePage() {
     // Re-emit on connect in case socket wasn't connected yet
     socket.on('connect', () => {
       console.log('Socket connected, re-emitting game:ready for', info.gameId)
+      setSocketConnected(true)
       socket.emit('game:ready', { gameId: info.gameId })
     })
+
+    socket.on('disconnect', () => { setSocketConnected(false) })
 
     socket.on('game:start', ({ fen: startFen, clocks: c }: any) => {
       console.log('game:start received!', { fen: startFen, clocks: c })
@@ -279,7 +286,7 @@ export default function GamePage() {
     })
 
     return () => {
-      ['connect','game:start','game:move','game:clock','game:end','game:invalid-move',
+      ['connect','disconnect','game:start','game:move','game:clock','game:end','game:invalid-move',
        'game:draw-offered','game:opponent-disconnected','chat:receive'].forEach(ev => socket.off(ev))
     }
   }, [mounted])
@@ -385,6 +392,7 @@ export default function GamePage() {
     if (chess.turn() !== myColor) return
 
     const sq = toSquare(dRow, dCol)
+    console.log('Clicked:', sq, 'myColor:', myColor, 'turn:', chess?.turn(), 'piece:', chess?.get(sq as any))
 
     if (selectedSquare) {
       if (validMoves.includes(sq)) {
@@ -553,16 +561,26 @@ export default function GamePage() {
         )}
 
         {/* ── Top bar ───────────────────────────────────── */}
-        <div style={{ height:'48px', background:'rgba(10,22,40,0.97)', borderBottom:'1px solid rgba(201,168,76,0.2)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 0.75rem', paddingTop:'env(safe-area-inset-top, 0px)', flexShrink:0 }}>
-          <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
+        <div style={{ height:'48px', background:'rgba(10,22,40,0.97)', borderBottom:'1px solid rgba(201,168,76,0.2)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 0.75rem', paddingTop:'env(safe-area-inset-top, 0px)', flexShrink:0, gap:'0.5rem' }}>
+          {/* Left: logo */}
+          <div style={{ display:'flex', alignItems:'center', gap:'0.4rem', flexShrink:0 }}>
             <span style={{ fontSize:'1.1rem', color:'#c9a84c' }}>♛</span>
-            <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'0.9rem', color:'#c9a84c', letterSpacing:'0.04em' }}>Chess Lobby</span>
+            <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'0.9rem', color:'#c9a84c', letterSpacing:'0.04em', display: isMobile ? 'none' : 'inline' }}>Chess Lobby</span>
           </div>
-          <div style={{ fontSize:'0.88rem', color:'#e8e0d0', display:'flex', alignItems:'center', gap:'0.4rem' }}>
-            <span>{currentTurn === 'w' ? '⚪' : '⚫'}</span>
-            <span style={{ display: isMobile ? 'none' : 'inline' }}>{currentTurn === 'w' ? "White's Turn" : "Black's Turn"}</span>
+          {/* Center: turn + player names + connection */}
+          <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', fontSize:'0.83rem', color:'#e8e0d0', overflow:'hidden', flex:1, justifyContent:'center', minWidth:0 }}>
+            <span style={{ flexShrink:0 }}>{currentTurn === 'w' ? '⚪' : '⚫'}</span>
+            <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', color:'#c9a84c' }} suppressHydrationWarning>
+              {myColor === 'w' ? myName : opponentName}
+            </span>
+            <span style={{ color:'#4a5568', flexShrink:0 }}>vs</span>
+            <span style={{ overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} suppressHydrationWarning>
+              {myColor === 'w' ? opponentName : myName}
+            </span>
+            <div style={{ width:'7px', height:'7px', borderRadius:'50%', background: socketConnected ? '#22c55e' : '#ef4444', flexShrink:0, boxShadow: socketConnected ? '0 0 4px #22c55e' : 'none' }} title={socketConnected ? 'Connected' : 'Disconnected'} />
           </div>
-          <div style={{ display:'flex', gap:'0.4rem' }}>
+          {/* Right: actions */}
+          <div style={{ display:'flex', gap:'0.4rem', flexShrink:0 }}>
             <button onClick={handleDraw} style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>🤝 Draw</button>
             <button onClick={handleResign} style={{ border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#ef4444', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>🏳️ Resign</button>
             <Link href="/lobby" style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', textDecoration:'none', display:'flex', alignItems:'center' }}>🏠</Link>
@@ -607,7 +625,7 @@ export default function GamePage() {
                   <div style={{ fontSize:'0.7rem', color:'#4a5568' }}>{opponentElo} · {myColor === 'w' ? '⚫' : '⚪'}</div>
                 </div>
               </div>
-              <div style={{ fontSize:'1.45rem', fontFamily:'monospace', color: currentTurn !== myColor ? '#ef4444' : '#e8c97a', marginTop:'0.35rem', letterSpacing:'0.05em' }}>{formatClock(oppClock)}</div>
+              <div style={{ fontSize:'1.45rem', fontFamily:'monospace', color: oppClock <= 30000 ? '#ef4444' : '#e8c97a', marginTop:'0.35rem', letterSpacing:'0.05em' }}>{formatClock(oppClock)}</div>
               {oppCaptures.length > 0 && (
                 <div style={{ display:'flex', flexWrap:'wrap', gap:'1px', marginTop:'0.2rem', alignItems:'center' }}>
                   {oppCaptures.map((p, i) => <span key={i} style={{ fontSize:'0.8rem', lineHeight:1 }}>{PIECE_UNICODE[p] || p}</span>)}
@@ -655,7 +673,7 @@ export default function GamePage() {
                   <div style={{ fontSize:'0.7rem', color:'#4a5568' }}>{myElo} · {myColor === 'w' ? '⚪' : '⚫'}</div>
                 </div>
               </div>
-              <div style={{ fontSize:'1.45rem', fontFamily:'monospace', color: currentTurn === myColor ? '#ef4444' : '#e8c97a', marginTop:'0.35rem', letterSpacing:'0.05em' }}>{formatClock(myClock)}</div>
+              <div style={{ fontSize:'1.45rem', fontFamily:'monospace', color: myClock <= 30000 ? '#ef4444' : '#e8c97a', marginTop:'0.35rem', letterSpacing:'0.05em' }}>{formatClock(myClock)}</div>
             </div>
           </div>
 
@@ -674,10 +692,10 @@ export default function GamePage() {
               <div style={{ position:'relative', paddingLeft:'1.4rem', paddingBottom:'1.4rem', width:'100%', height:'100%', boxSizing:'border-box' }}>
 
                 {rankLabels.map((rank, ri) => (
-                  <div key={ri} style={{ position:'absolute', left:0, top:`calc(${ri}*(100%-1.4rem)/8+(100%-1.4rem)/16)`, fontSize:'0.62rem', color:'#9aa5b4', fontFamily:'monospace', lineHeight:1, transform:'translateY(-50%)' }}>{rank}</div>
+                  <div key={ri} style={{ position:'absolute', left:0, top:`calc(${ri}*(100%-1.4rem)/8+(100%-1.4rem)/16)`, fontSize:'0.62rem', color:'rgba(201,168,76,0.55)', fontFamily:'monospace', lineHeight:1, transform:'translateY(-50%)', userSelect:'none' }}>{rank}</div>
                 ))}
                 {fileLabels.map((f, ci) => (
-                  <div key={f} style={{ position:'absolute', bottom:0, left:`calc(1.4rem+${ci}*(100%-1.4rem)/8+(100%-1.4rem)/16)`, fontSize:'0.62rem', color:'#9aa5b4', fontFamily:'monospace', lineHeight:1, transform:'translateX(-50%)' }}>{f}</div>
+                  <div key={f} style={{ position:'absolute', bottom:0, left:`calc(1.4rem+${ci}*(100%-1.4rem)/8+(100%-1.4rem)/16)`, fontSize:'0.62rem', color:'rgba(201,168,76,0.55)', fontFamily:'monospace', lineHeight:1, transform:'translateX(-50%)', userSelect:'none' }}>{f}</div>
                 ))}
 
                 <div style={{ position:'absolute', top:0, left:'1.4rem', right:0, bottom:'1.4rem', display:'grid', gridTemplateColumns:'repeat(8,1fr)', boxShadow:'0 8px 40px rgba(0,0,0,0.6)', border:'2px solid rgba(201,168,76,0.3)', borderRadius:'2px', overflow:'hidden' }}>
@@ -710,7 +728,7 @@ export default function GamePage() {
           </div>
 
           {/* Right panel — chat/voice */}
-          <div className={`right-panel${isMobile && showChatDrawer ? ' mobile-show' : ''}`} style={{ width:'clamp(260px,20vw,300px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderLeft:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
+          <div className={`right-panel${isMobile && showChatDrawer ? ' mobile-show' : ''}`} style={{ width:'clamp(260px,20vw,320px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderLeft:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
 
             <div style={{ display:'flex', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
               {(['chat','voice'] as const).map(tab => (
