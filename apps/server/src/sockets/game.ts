@@ -5,9 +5,9 @@
 // ─────────────────────────────────────────────────────────────
 
 import { Server, Socket } from 'socket.io'
-// chess.js 0.12.0 uses CommonJS exports — no native ESM
+// chess.js 0.12.0 exports { Chess } as a named CommonJS export
 // eslint-disable-next-line @typescript-eslint/no-var-requires
-const Chess = require('chess.js')
+const Chess = require('chess.js').Chess
 import { prisma } from '../db/client'
 
 function calculateElo(

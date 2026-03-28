@@ -20,15 +20,13 @@ const io = new Server(app.server, {
     methods: ['GET', 'POST'],
     credentials: false,
   },
-  transports: ['websocket', 'polling'],
+  transports: ['polling', 'websocket'],
+  allowEIO3: true,
 })
 
 // ── Plugins ──
 app.register(fastifyCors, {
-  origin: (origin, cb) => {
-    // Allow all origins in production
-    cb(null, true)
-  },
+  origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
