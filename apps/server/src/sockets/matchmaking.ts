@@ -8,7 +8,6 @@ import { generateRoomCode } from '@royal-chess/chess-engine'
 import { prisma } from '../db/client'
 
 // In-memory matchmaking queue per time control
-// Format: { [timeControl]: [ {socketId, userId, username, elo} ] }
 const queues: Record<number, QueueEntry[]> = {}
 
 // Active private rooms waiting for opponent
@@ -37,54 +36,66 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
 
   // ── Join public queue ──────────────────────────────────────
   socket.on('queue:join', async ({ timeControl, eloRating }: { timeControl: number; eloRating: number }) => {
-    if (!queues[timeControl]) queues[timeControl] = []
+    // Parse eloRating as number — client may send it as a string from localStorage
+    const elo = Number(eloRating) || 1200
+    const tc  = Number(timeControl) || 600
 
-    // Remove any existing queue entry for this user
-    queues[timeControl] = queues[timeControl].filter(e => e.userId !== userId)
+    if (!queues[tc]) queues[tc] = []
+
+    // Remove any stale entry for this user
+    queues[tc] = queues[tc].filter(e => e.userId !== userId)
+
+    console.log(`[Queue] ${username} joined queue for ${tc}s (elo: ${elo}). Queue size before: ${queues[tc].length}`)
 
     const entry: QueueEntry = {
       socketId: socket.id,
       userId,
       username,
-      eloRating,
+      eloRating: elo,
       joinedAt: Date.now(),
     }
 
-    // Try to find an opponent (within 200 Elo, expanding over time)
-    const opponent = findOpponent(queues[timeControl], entry)
+    // Try to find an opponent BEFORE adding self to queue
+    const opponent = findOpponent(queues[tc], entry)
 
     if (opponent) {
       // Remove opponent from queue
-      queues[timeControl] = queues[timeControl].filter(e => e.userId !== opponent.userId)
+      queues[tc] = queues[tc].filter(e => e.userId !== opponent.userId)
 
-      // Create the game
-      const game = await createGame(entry, opponent, timeControl, 'public')
+      console.log(`[Match] Matched ${username} (${elo}) with ${opponent.username} (${opponent.eloRating})`)
 
-      // Assign colors randomly
-      const [white, black] = Math.random() > 0.5 ? [entry, opponent] : [opponent, entry]
+      try {
+        const game = await createGame(entry, opponent, tc, 'public')
 
-      // Put both in a Socket.io room
-      socket.join(game.id)
-      io.sockets.sockets.get(opponent.socketId)?.join(game.id)
+        // Assign colors randomly
+        const [white, black] = Math.random() > 0.5 ? [entry, opponent] : [opponent, entry]
 
-      // Notify both players
-      socket.emit('match:found', {
-        gameId: game.id,
-        color: white.userId === userId ? 'w' : 'b',
-        opponent: { username: opponent.username, eloRating: opponent.eloRating },
-        timeControl,
-      })
+        // Put both in a Socket.io room
+        socket.join(game.id)
+        io.sockets.sockets.get(opponent.socketId)?.join(game.id)
 
-      io.to(opponent.socketId).emit('match:found', {
-        gameId: game.id,
-        color: white.userId === opponent.userId ? 'w' : 'b',
-        opponent: { username, eloRating },
-        timeControl,
-      })
+        socket.emit('match:found', {
+          gameId: game.id,
+          color: white.userId === userId ? 'w' : 'b',
+          opponent: { id: opponent.userId, username: opponent.username, eloRating: opponent.eloRating },
+          timeControl: tc,
+        })
+
+        io.to(opponent.socketId).emit('match:found', {
+          gameId: game.id,
+          color: white.userId === opponent.userId ? 'w' : 'b',
+          opponent: { id: userId, username, eloRating: elo },
+          timeControl: tc,
+        })
+      } catch (err) {
+        console.error('[Match] createGame failed:', err)
+        socket.emit('queue:error', { message: 'Failed to create game, please try again' })
+      }
     } else {
-      // Add to queue and wait
-      queues[timeControl].push(entry)
-      socket.emit('queue:waiting', { position: queues[timeControl].length })
+      // No opponent found — add to queue and wait
+      queues[tc].push(entry)
+      console.log(`[Queue] No opponent for ${username}. Queue size now: ${queues[tc].length}`)
+      socket.emit('queue:waiting', { position: queues[tc].length })
     }
   })
 
@@ -98,6 +109,8 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
 
   // ── Create private room ────────────────────────────────────
   socket.on('room:create', async ({ timeControl, eloRating }: { timeControl: number; eloRating: number }) => {
+    const elo = Number(eloRating) || 1200
+    const tc  = Number(timeControl) || 600
     const code = generateRoomCode()
 
     pendingRooms[code] = {
@@ -105,12 +118,12 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
       hostSocketId: socket.id,
       hostUserId: userId,
       hostUsername: username,
-      hostElo: eloRating,
-      timeControl,
+      hostElo: elo,
+      timeControl: tc,
       createdAt: Date.now(),
     }
 
-    socket.emit('room:created', { code, timeControl })
+    socket.emit('room:created', { code, timeControl: tc })
 
     // Auto-expire room after 10 minutes
     setTimeout(() => {
@@ -123,6 +136,7 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
 
   // ── Join private room ──────────────────────────────────────
   socket.on('room:join', async ({ code, eloRating }: { code: string; eloRating: number }) => {
+    const elo  = Number(eloRating) || 1200
     const room = pendingRooms[code.toUpperCase()]
 
     if (!room) {
@@ -134,7 +148,7 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
       return
     }
 
-    delete pendingRooms[code]
+    delete pendingRooms[code.toUpperCase()]
 
     const hostEntry: QueueEntry = {
       socketId: room.hostSocketId,
@@ -147,30 +161,34 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
       socketId: socket.id,
       userId,
       username,
-      eloRating,
+      eloRating: elo,
       joinedAt: Date.now(),
     }
 
-    const game = await createGame(hostEntry, guestEntry, room.timeControl, 'private')
+    try {
+      const game = await createGame(hostEntry, guestEntry, room.timeControl, 'private')
+      const [white, black] = Math.random() > 0.5 ? [hostEntry, guestEntry] : [guestEntry, hostEntry]
 
-    const [white, black] = Math.random() > 0.5 ? [hostEntry, guestEntry] : [guestEntry, hostEntry]
+      socket.join(game.id)
+      io.sockets.sockets.get(room.hostSocketId)?.join(game.id)
 
-    socket.join(game.id)
-    io.sockets.sockets.get(room.hostSocketId)?.join(game.id)
+      io.to(room.hostSocketId).emit('room:joined', {
+        gameId: game.id,
+        color: white.userId === room.hostUserId ? 'w' : 'b',
+        opponent: { id: userId, username, eloRating: elo },
+        timeControl: room.timeControl,
+      })
 
-    io.to(room.hostSocketId).emit('room:joined', {
-      gameId: game.id,
-      color: white.userId === room.hostUserId ? 'w' : 'b',
-      opponent: { username, eloRating },
-      timeControl: room.timeControl,
-    })
-
-    socket.emit('room:joined', {
-      gameId: game.id,
-      color: white.userId === userId ? 'w' : 'b',
-      opponent: { username: room.hostUsername, eloRating: room.hostElo },
-      timeControl: room.timeControl,
-    })
+      socket.emit('room:joined', {
+        gameId: game.id,
+        color: white.userId === userId ? 'w' : 'b',
+        opponent: { id: room.hostUserId, username: room.hostUsername, eloRating: room.hostElo },
+        timeControl: room.timeControl,
+      })
+    } catch (err) {
+      console.error('[Room] createGame failed:', err)
+      socket.emit('room:error', { message: 'Failed to create game, please try again' })
+    }
   })
 
   // ── Clean up on disconnect ─────────────────────────────────
@@ -189,16 +207,28 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
 // ── Helpers ───────────────────────────────────────────────────
 
 function findOpponent(queue: QueueEntry[], seeker: QueueEntry): QueueEntry | null {
-  const waitSeconds = (Date.now() - seeker.joinedAt) / 1000
-  // Expand Elo range by 50 per 30 seconds of waiting
-  const eloRange = 200 + Math.floor(waitSeconds / 30) * 50
+  const seekerWait = (Date.now() - seeker.joinedAt) / 1000
 
-  return (
-    queue.find(e =>
-      e.userId !== seeker.userId &&
-      Math.abs(e.eloRating - seeker.eloRating) <= eloRange
-    ) ?? null
-  )
+  for (const candidate of queue) {
+    if (candidate.userId === seeker.userId) continue
+
+    // Use the longer of the two wait times to determine Elo range.
+    // This ensures a player who has been waiting 60s gets a wider bracket.
+    const candidateWait = (Date.now() - candidate.joinedAt) / 1000
+    const maxWait  = Math.max(seekerWait, candidateWait)
+    const eloRange = 500 + Math.floor(maxWait / 30) * 50
+
+    const eloDiff = Math.abs(candidate.eloRating - seeker.eloRating)
+
+    console.log(
+      `[Match] Checking ${seeker.username} (${seeker.eloRating}) vs ${candidate.username} (${candidate.eloRating}) ` +
+      `| diff: ${eloDiff} | range: ${eloRange} | maxWait: ${maxWait.toFixed(0)}s`
+    )
+
+    if (eloDiff <= eloRange) return candidate
+  }
+
+  return null
 }
 
 async function createGame(
