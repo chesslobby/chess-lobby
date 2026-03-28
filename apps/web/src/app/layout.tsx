@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, Crimson_Pro } from 'next/font/google'
+import ToastContainer from '@/components/Toast'
 
 const playfair = Playfair_Display({
   subsets: ['latin'],
@@ -32,6 +33,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         }}
       >
         {children}
+        <ToastContainer />
       </body>
     </html>
   )

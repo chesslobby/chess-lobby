@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Navbar from '@/components/Navbar'
 import { getUser, clearAuth } from '@/lib/api'
+import { showToast } from '@/components/Toast'
 
 function resultColor(result: string) {
   if (result === 'Win') return '#22c55e'
@@ -31,6 +32,8 @@ export default function ProfilePage() {
   const router = useRouter()
   const [friendInput, setFriendInput] = useState('')
   const [friendFocused, setFriendFocused] = useState(false)
+  const [friendMsg, setFriendMsg] = useState('')
+  const [sendingFriend, setSendingFriend] = useState(false)
   const [user, setUser] = useState<any>(null)
 
   useEffect(() => {
@@ -45,6 +48,33 @@ export default function ProfilePage() {
   function handleLogout() {
     clearAuth()
     router.push('/')
+  }
+
+  async function sendFriendRequest() {
+    if (!friendInput.trim()) return
+    setSendingFriend(true)
+    setFriendMsg('')
+    try {
+      const token = localStorage.getItem('chess_token')
+      const res = await fetch(`http://localhost:4000/friends/request/${friendInput.trim()}`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      })
+      if (res.ok) {
+        setFriendMsg('Friend request sent! ✅')
+        setFriendInput('')
+        showToast('Friend request sent!', 'success')
+      } else {
+        const data = await res.json()
+        setFriendMsg(data.error || 'Failed to send request')
+        showToast(data.error || 'Failed to send request', 'error')
+      }
+    } catch {
+      setFriendMsg('Network error')
+      showToast('Network error', 'error')
+    } finally {
+      setSendingFriend(false)
+    }
   }
 
   if (!user) return null
@@ -220,18 +250,28 @@ export default function ProfilePage() {
               <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '1.1rem', color: '#e8e0d0', fontWeight: 700 }}>Friends</span>
             </div>
 
-            <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', gap: '0.5rem' }}>
-              <input
-                className={`input-field${friendFocused ? ' focused' : ''}`}
-                type="text"
-                placeholder="Search for a player..."
-                value={friendInput}
-                onChange={(e) => setFriendInput(e.target.value)}
-                onFocus={() => setFriendFocused(true)}
-                onBlur={() => setFriendFocused(false)}
-                style={{ flex: 1, padding: '0.55rem 0.8rem' }}
-              />
-              <button className="btn-gold">Add Friend</button>
+            <div style={{ padding: '0.75rem 1.25rem', borderBottom: '1px solid rgba(201,168,76,0.1)' }}>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <input
+                  className={`input-field${friendFocused ? ' focused' : ''}`}
+                  type="text"
+                  placeholder="Search for a player..."
+                  value={friendInput}
+                  onChange={(e) => setFriendInput(e.target.value)}
+                  onFocus={() => setFriendFocused(true)}
+                  onBlur={() => setFriendFocused(false)}
+                  onKeyDown={e => { if (e.key === 'Enter') sendFriendRequest() }}
+                  style={{ flex: 1, padding: '0.55rem 0.8rem' }}
+                />
+                <button className="btn-gold" onClick={sendFriendRequest} disabled={sendingFriend} style={{ opacity: sendingFriend ? 0.7 : 1 }}>
+                  {sendingFriend ? '...' : 'Add Friend'}
+                </button>
+              </div>
+              {friendMsg && (
+                <p style={{ margin: '0.4rem 0 0', fontSize: '0.82rem', color: friendMsg.includes('✅') ? '#22c55e' : '#ef4444' }}>
+                  {friendMsg}
+                </p>
+              )}
             </div>
 
             {FRIENDS.map((f, i) => (

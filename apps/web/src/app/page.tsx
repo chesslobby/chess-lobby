@@ -91,6 +91,15 @@ export default function HomePage() {
         .stat-card {
           text-align: center; flex: 1;
         }
+
+        @media (max-width: 640px) {
+          .hero-title { font-size: clamp(2rem,10vw,2.8rem) !important; }
+          .hero-crown { font-size: 4rem !important; }
+          .cta-buttons { flex-direction: column !important; align-items: stretch !important; }
+          .cta-buttons a { text-align: center !important; }
+          .how-cards { flex-direction: column !important; }
+          .stats-row { gap: 0 !important; }
+        }
       `}</style>
 
       <main style={{ position:'relative', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', backgroundColor:'#0a1628', overflow:'hidden' }}>
@@ -111,9 +120,9 @@ export default function HomePage() {
         {/* ── Hero ───────────────────────────────────────── */}
         <div style={{ position:'relative', zIndex:2, display:'flex', flexDirection:'column', alignItems:'center', textAlign:'center', padding:'4rem 1.5rem 3rem', maxWidth:'680px', width:'100%' }}>
 
-          <div className="fade-in crown" style={{ fontSize:'6rem', lineHeight:1, marginBottom:'1rem', userSelect:'none' }}>♔</div>
+          <div className="fade-in crown hero-crown" style={{ fontSize:'6rem', lineHeight:1, marginBottom:'1rem', userSelect:'none' }}>♔</div>
 
-          <h1 className="fade-in-1" style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'clamp(2.8rem,7vw,4rem)', fontWeight:700, letterSpacing:'0.04em', color:'#c9a84c', margin:'0 0 0.6rem', lineHeight:1.1 }}>
+          <h1 className="fade-in-1 hero-title" style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'clamp(2.8rem,7vw,4rem)', fontWeight:700, letterSpacing:'0.04em', color:'#c9a84c', margin:'0 0 0.6rem', lineHeight:1.1 }}>
             Chess Lobby
           </h1>
 
@@ -133,7 +142,7 @@ export default function HomePage() {
             <span className="pill">🏆 Elo Ranking</span>
           </div>
 
-          <div className="fade-in-3" style={{ display:'flex', flexWrap:'wrap', gap:'1rem', justifyContent:'center', marginBottom:'1.25rem' }}>
+          <div className="fade-in-3 cta-buttons" style={{ display:'flex', flexWrap:'wrap', gap:'1rem', justifyContent:'center', marginBottom:'1.25rem' }}>
             <Link href="/lobby" className="btn-gold">Play Now</Link>
             <Link href="/login" className="btn-outline">Sign In</Link>
           </div>
@@ -144,7 +153,7 @@ export default function HomePage() {
         </div>
 
         {/* ── Stats row ──────────────────────────────────── */}
-        <div className="fade-in-5" style={{ position:'relative', zIndex:2, display:'flex', gap:'0', width:'100%', maxWidth:'600px', padding:'0 1.5rem', marginBottom:'4rem' }}>
+        <div className="fade-in-5 stats-row" style={{ position:'relative', zIndex:2, display:'flex', gap:'0', width:'100%', maxWidth:'600px', padding:'0 1.5rem', marginBottom:'4rem' }}>
           {STATS.map((s, i) => (
             <div key={i} className="stat-card" style={{ borderRight: i < STATS.length - 1 ? '1px solid rgba(201,168,76,0.2)' : 'none', padding:'0 1.5rem' }}>
               <div style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.8rem', fontWeight:700, color:'#c9a84c', lineHeight:1 }}>{s.value}</div>
@@ -164,7 +173,7 @@ export default function HomePage() {
             <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.6rem', color:'#e8e0d0', margin:0 }}>Three steps to glory</h2>
           </div>
 
-          <div style={{ display:'flex', gap:'1rem', flexWrap:'wrap' }}>
+          <div className="how-cards" style={{ display:'flex', gap:'1rem', flexWrap:'wrap' }}>
             {HOW_IT_WORKS.map((step, i) => (
               <div key={i} className="how-card">
                 <div style={{ fontSize:'2.2rem', marginBottom:'0.75rem' }}>{step.icon}</div>

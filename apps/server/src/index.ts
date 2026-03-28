@@ -5,6 +5,8 @@ import fastifyCors from '@fastify/cors'
 import fastifyJwt from '@fastify/jwt'
 import fastifyRateLimit from '@fastify/rate-limit'
 import { registerAuthRoutes } from './routes/auth'
+import { registerUserRoutes, registerFriendRoutes } from './routes/users'
+import { registerGameRoutes } from './routes/games'
 import { authMiddleware } from './middleware/auth'
 import { registerMatchmakingHandlers } from './sockets/matchmaking'
 import { registerGameHandlers } from './sockets/game'
@@ -33,7 +35,10 @@ app.register(fastifyRateLimit, {
 
 // ── Routes ──
 app.get('/health', async () => ({ status: 'ok', version: '1.0.0' }))
-app.register(registerAuthRoutes, { prefix: '/auth' })
+app.register(registerAuthRoutes,   { prefix: '/auth' })
+app.register(registerUserRoutes,   { prefix: '/users' })
+app.register(registerFriendRoutes, { prefix: '/friends' })
+app.register(registerGameRoutes,   { prefix: '/games' })
 
 // ── Socket.io ──
 io.use(authMiddleware)

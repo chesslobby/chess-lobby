@@ -4,12 +4,18 @@ import Link from 'next/link'
 import { getSocket } from '@/lib/socket'
 import { getUser } from '@/lib/api'
 import { playMoveSound, playCaptureSound, playCheckSound, playGameEndSound } from '@/lib/sounds'
+import { showToast } from '@/components/Toast'
 
-// ── Themes ──────────────────────────────────────────────────────
+// ── Constants ───────────────────────────────────────────────────
 const THEMES = [
   { light: '#f0d9b5', dark: '#b58863' }, // Classic Wood
   { light: '#ffffdd', dark: '#86a666' }, // Emerald Green
   { light: '#dee3e6', dark: '#8ca2ad' }, // Midnight Blue
+]
+
+const ICE_SERVERS = [
+  { urls: 'stun:stun.l.google.com:19302' },
+  { urls: 'stun:stun1.l.google.com:19302' },
 ]
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
@@ -23,9 +29,11 @@ const PIECE_VALUES: Record<string, number> = { p: 1, n: 3, b: 3, r: 5, q: 9 }
 
 const RESULT_REASONS: Record<string, string> = {
   checkmate: 'by Checkmate', resign: 'by Resignation',
-  timeout: 'by Timeout',    stalemate: 'Stalemate',
-  draw: 'by Agreement',     abandoned: 'Abandoned',
+  timeout:   'by Timeout',   stalemate: 'Stalemate',
+  draw:      'by Agreement', abandoned: 'Abandoned',
 }
+
+const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
 
 type ChatMsg = { sender: string; text: string; self?: boolean; system?: boolean }
 
@@ -46,7 +54,6 @@ function formatClock(ms: number): string {
   return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
 }
 
-/** Find a piece that disappeared between two FEN positions */
 function getCapturedPiece(oldFen: string, newFen: string): string | null {
   const count = (fen: string) => {
     const m: Record<string, number> = {}
@@ -66,46 +73,60 @@ function materialBalance(cap: { w: string[], b: string[] }) {
   return { w: wMat - bMat, b: bMat - wMat }
 }
 
-const INITIAL_FEN = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1'
-
 // ── Component ────────────────────────────────────────────────────
 export default function GamePage() {
-  const [boardTheme, setBoardTheme] = useState(0)
-  const [gameInfo, setGameInfo]     = useState<any>(null)
-  const [chess, setChess]           = useState<any>(null)
-  const [board, setBoard]           = useState<(string | null)[][]>(fenToBoard(INITIAL_FEN))
-  const [fen, setFen]               = useState(INITIAL_FEN)
+  // Board / game state
+  const [boardTheme, setBoardTheme]   = useState(0)
+  const [gameInfo, setGameInfo]       = useState<any>(null)
+  const [chess, setChess]             = useState<any>(null)
+  const [board, setBoard]             = useState<(string | null)[][]>(fenToBoard(INITIAL_FEN))
+  const [fen, setFen]                 = useState(INITIAL_FEN)
   const [currentTurn, setCurrentTurn] = useState<'w' | 'b'>('w')
-  const [myColor, setMyColor]       = useState<'w' | 'b'>('w')
+  const [myColor, setMyColor]         = useState<'w' | 'b'>('w')
   const [boardFlipped, setBoardFlipped] = useState(false)
   const [selectedSquare, setSelectedSquare] = useState<string | null>(null)
-  const [validMoves, setValidMoves] = useState<string[]>([])
-  const [clocks, setClocks]         = useState({ w: 600000, b: 600000 })
-  const [gameOver, setGameOver]     = useState(false)
-  const [gameResult, setGameResult] = useState('')
+  const [validMoves, setValidMoves]   = useState<string[]>([])
+  const [clocks, setClocks]           = useState({ w: 600000, b: 600000 })
+  const [gameOver, setGameOver]       = useState(false)
+  const [gameWaiting, setGameWaiting] = useState(true)
+  const [gameResult, setGameResult]   = useState('')
   const [gameResultReason, setGameResultReason] = useState('')
-  const [eloChange, setEloChange]   = useState<number | null>(null)
-  const [captured, setCaptured]     = useState<{ w: string[], b: string[] }>({ w: [], b: [] })
+  const [eloChange, setEloChange]     = useState<number | null>(null)
+  const [captured, setCaptured]       = useState<{ w: string[], b: string[] }>({ w: [], b: [] })
   const [moveHistory, setMoveHistory] = useState<{ n: number; w: string; b: string }[]>([])
   const [pendingWhite, setPendingWhite] = useState<string | null>(null)
-  const [activeTab, setActiveTab]   = useState<'chat' | 'voice'>('chat')
-  const [messages, setMessages]     = useState<ChatMsg[]>([
+
+  // UI state
+  const [activeTab, setActiveTab]     = useState<'chat' | 'voice'>('chat')
+  const [messages, setMessages]       = useState<ChatMsg[]>([
     { sender: 'System', text: 'Good luck! Have fun! 🤝', system: true },
   ])
-  const [chatInput, setChatInput]   = useState('')
+  const [chatInput, setChatInput]     = useState('')
   const [chatFocused, setChatFocused] = useState(false)
-  const [voiceJoined, setVoiceJoined] = useState(false)
+  const [statusMsg, setStatusMsg]     = useState('')
+  const [drawOfferReceived, setDrawOfferReceived] = useState(false)
+  const [isMobile, setIsMobile]       = useState(false)
+  const [showLeftPanel, setShowLeftPanel] = useState(true)
+  const [showChatDrawer, setShowChatDrawer] = useState(false)
 
-  // Refs that stay current inside socket closures
+  // Voice state
+  const [voiceState, setVoiceState]   = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle')
+  const [isMuted, setIsMuted]         = useState(false)
+  const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+
+  // Refs for stale-closure safety
   const fenRef          = useRef(INITIAL_FEN)
   const myColorRef      = useRef<'w' | 'b'>('w')
   const pendingWhiteRef = useRef<string | null>(null)
   const moveScrollRef   = useRef<HTMLDivElement>(null)
   const chatScrollRef   = useRef<HTMLDivElement>(null)
+  const peerRef         = useRef<RTCPeerConnection | null>(null)
+  const remoteAudioRef  = useRef<HTMLAudioElement | null>(null)
+  const statusTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const theme = THEMES[boardTheme]
 
-  // ── Auto-scroll move list + chat ─────────────────────────────
+  // ── Auto-scroll ───────────────────────────────────────────────
   useEffect(() => {
     if (moveScrollRef.current)
       moveScrollRef.current.scrollTop = moveScrollRef.current.scrollHeight
@@ -115,6 +136,14 @@ export default function GamePage() {
     if (chatScrollRef.current)
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
   }, [messages])
+
+  // ── Mobile detection ─────────────────────────────────────────
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
 
   // ── Keyboard shortcuts ───────────────────────────────────────
   useEffect(() => {
@@ -126,6 +155,13 @@ export default function GamePage() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [])
+
+  // ── Status message auto-clear ────────────────────────────────
+  function showStatusMsg(msg: string) {
+    setStatusMsg(msg)
+    if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
+    statusTimerRef.current = setTimeout(() => setStatusMsg(''), 5000)
+  }
 
   // ── Game init + socket ───────────────────────────────────────
   useEffect(() => {
@@ -146,6 +182,11 @@ export default function GamePage() {
     const socket = getSocket()
     socket.emit('game:ready', { gameId: info.gameId })
 
+    // Reconnection
+    socket.on('connect', () => {
+      if (info.gameId) socket.emit('game:ready', { gameId: info.gameId })
+    })
+
     socket.on('game:start', ({ fen: startFen, clocks: c }: any) => {
       const { Chess } = require('chess.js')
       const ch = new Chess()
@@ -154,6 +195,7 @@ export default function GamePage() {
       fenRef.current = f
       setChess(ch); setFen(f); setBoard(fenToBoard(f)); setCurrentTurn(ch.turn())
       if (c) setClocks(c)
+      setGameWaiting(false)
     })
 
     socket.on('game:move', ({ fen: moveFen, clocks: c, san }: any) => {
@@ -163,7 +205,6 @@ export default function GamePage() {
       const justMoved: 'w' | 'b' = ch.turn() === 'w' ? 'b' : 'w'
       const isOpponent = justMoved !== myColorRef.current
 
-      // Capture detection (only for opponent; mine handled in handleSquareClick)
       if (isOpponent) {
         const cap = getCapturedPiece(fenRef.current, moveFen)
         if (cap) {
@@ -185,7 +226,6 @@ export default function GamePage() {
       if (c) setClocks(c)
       setSelectedSquare(null); setValidMoves([])
 
-      // Move history (server is source of truth for both players)
       if (san) {
         if (justMoved === 'w') {
           pendingWhiteRef.current = san
@@ -213,15 +253,107 @@ export default function GamePage() {
 
     socket.on('game:invalid-move', () => { setSelectedSquare(null); setValidMoves([]) })
 
+    socket.on('game:draw-offered', () => {
+      setDrawOfferReceived(true)
+      showToast('Opponent offered a draw', 'info')
+    })
+
+    socket.on('game:opponent-disconnected', ({ reconnectTimeout }: any) => {
+      showStatusMsg(`Opponent disconnected. Waiting ${reconnectTimeout || 30}s for reconnect...`)
+      showToast('Opponent disconnected', 'warning')
+    })
+
     socket.on('chat:receive', ({ senderName, message }: any) => {
       setMessages(prev => [...prev, { sender: senderName, text: message, self: false }])
     })
 
     return () => {
-      ['game:start','game:move','game:clock','game:end','game:invalid-move','chat:receive']
-        .forEach(ev => socket.off(ev))
+      ['connect','game:start','game:move','game:clock','game:end','game:invalid-move',
+       'game:draw-offered','game:opponent-disconnected','chat:receive'].forEach(ev => socket.off(ev))
     }
   }, [])
+
+  // ── Voice ────────────────────────────────────────────────────
+  async function startVoice() {
+    const info = gameInfo
+    try {
+      setVoiceState('connecting')
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      setLocalStream(stream)
+
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
+      peerRef.current = pc
+
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+
+      pc.ontrack = (event) => {
+        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0]
+        setVoiceState('connected')
+      }
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          getSocket().emit('voice:ice', {
+            gameId: info?.gameId,
+            toUserId: info?.opponent?.id,
+            candidate: event.candidate,
+          })
+        }
+      }
+
+      const socket = getSocket()
+      socket.emit('voice:join', { gameId: info?.gameId })
+
+      socket.on('voice:initiate', async ({ toUserId }: any) => {
+        const offer = await pc.createOffer()
+        await pc.setLocalDescription(offer)
+        socket.emit('voice:offer', { gameId: info?.gameId, toUserId, offer })
+      })
+
+      socket.on('voice:offer', async ({ fromUserId, offer }: any) => {
+        await pc.setRemoteDescription(offer)
+        const answer = await pc.createAnswer()
+        await pc.setLocalDescription(answer)
+        socket.emit('voice:answer', { gameId: info?.gameId, toUserId: fromUserId, answer })
+      })
+
+      socket.on('voice:answer', async ({ answer }: any) => {
+        await pc.setRemoteDescription(answer)
+      })
+
+      socket.on('voice:ice', async ({ candidate }: any) => {
+        try { await pc.addIceCandidate(candidate) } catch {}
+      })
+
+      socket.on('voice:peer-left', () => {
+        setVoiceState('idle')
+        showToast('Opponent left voice chat', 'info')
+      })
+
+    } catch (err) {
+      console.error('Voice error:', err)
+      setVoiceState('error')
+      showToast('Microphone access denied', 'error')
+    }
+  }
+
+  function stopVoice() {
+    localStream?.getTracks().forEach(t => t.stop())
+    peerRef.current?.close()
+    peerRef.current = null
+    setLocalStream(null)
+    setVoiceState('idle')
+    getSocket().emit('voice:leave', { gameId: gameInfo?.gameId })
+    ;['voice:initiate','voice:offer','voice:answer','voice:ice','voice:peer-left']
+      .forEach(ev => getSocket().off(ev))
+  }
+
+  function toggleMute() {
+    if (localStream) {
+      localStream.getAudioTracks().forEach(t => { t.enabled = isMuted })
+      setIsMuted(m => !m)
+    }
+  }
 
   // ── Board orientation ────────────────────────────────────────
   const displayBoard = boardFlipped
@@ -238,7 +370,7 @@ export default function GamePage() {
 
   // ── Square click ─────────────────────────────────────────────
   function handleSquareClick(dRow: number, dCol: number) {
-    if (gameOver || !chess) return
+    if (gameOver || !chess || gameWaiting) return
     if (chess.turn() !== myColor) return
 
     const sq = toSquare(dRow, dCol)
@@ -246,8 +378,6 @@ export default function GamePage() {
     if (selectedSquare) {
       if (validMoves.includes(sq)) {
         getSocket().emit('game:move', { gameId: gameInfo?.gameId, from: selectedSquare, to: sq, promotion: 'q' })
-
-        // Optimistic update
         try {
           const { Chess } = require('chess.js')
           const opt = new Chess(); opt.load(fen)
@@ -289,24 +419,50 @@ export default function GamePage() {
     setChatInput('')
   }
 
+  function handleDraw() {
+    if (window.confirm('Offer a draw to your opponent?')) {
+      getSocket().emit('game:draw-offer', { gameId: gameInfo?.gameId })
+      showToast('Draw offered to opponent', 'info')
+    }
+  }
+
+  function handleResign() {
+    if (window.confirm('Are you sure you want to resign?')) {
+      getSocket().emit('game:resign', { gameId: gameInfo?.gameId })
+    }
+  }
+
+  function acceptDraw() {
+    getSocket().emit('game:draw-response', { gameId: gameInfo?.gameId, accept: true })
+    setDrawOfferReceived(false)
+  }
+
+  function declineDraw() {
+    getSocket().emit('game:draw-response', { gameId: gameInfo?.gameId, accept: false })
+    setDrawOfferReceived(false)
+    showToast('Draw declined', 'info')
+  }
+
   // ── Derived values ───────────────────────────────────────────
-  const user        = getUser()
-  const myName      = user?.username || 'You'
-  const myElo       = user?.eloRating || 1200
+  const user         = getUser()
+  const myName       = user?.username || 'You'
+  const myElo        = user?.eloRating || 1200
   const opponentName = gameInfo?.opponent?.username || 'Opponent'
   const opponentElo  = gameInfo?.opponent?.eloRating || 1200
+  const myClock      = myColor === 'w' ? clocks.w : clocks.b
+  const oppClock     = myColor === 'w' ? clocks.b : clocks.w
+  const myCaptures   = myColor === 'w' ? captured.w : captured.b
+  const oppCaptures  = myColor === 'w' ? captured.b : captured.w
+  const bal          = materialBalance(captured)
+  const myAdv        = myColor === 'w' ? bal.w : bal.b
+  const oppAdv       = myColor === 'w' ? bal.b : bal.w
 
-  const myClock  = myColor === 'w' ? clocks.w : clocks.b
-  const oppClock = myColor === 'w' ? clocks.b : clocks.w
-
-  const myCaptures  = myColor === 'w' ? captured.w : captured.b
-  const oppCaptures = myColor === 'w' ? captured.b : captured.w
-  const bal        = materialBalance(captured)
-  const myAdv      = myColor === 'w' ? bal.w : bal.b
-  const oppAdv     = myColor === 'w' ? bal.b : bal.w
-
+  // ── Render ───────────────────────────────────────────────────
   return (
     <>
+      {/* Hidden audio element for remote voice */}
+      <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
+
       <style suppressHydrationWarning>{`
         .board-sq { transition: filter 0.1s; }
         .board-sq:hover { filter: brightness(1.12); }
@@ -324,7 +480,26 @@ export default function GamePage() {
         .moves-scroll::-webkit-scrollbar-track { background: transparent; }
         .moves-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.15); border-radius: 2px; }
         @keyframes fadeInScale { from { opacity:0; transform:scale(0.9); } to { opacity:1; transform:scale(1); } }
+        @keyframes pulseRing { 0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.6); } 50% { box-shadow: 0 0 0 8px rgba(201,168,76,0); } }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes waitPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
         .game-over-card { animation: fadeInScale 0.3s ease both; }
+        .voice-ring { animation: pulseRing 1.5s ease-in-out infinite; }
+        .wait-pulse { animation: waitPulse 1.4s ease-in-out infinite; }
+        .spinner { width:36px;height:36px;border:3px solid rgba(201,168,76,0.2);border-top-color:#c9a84c;border-radius:50%;animation:spin 0.8s linear infinite; }
+
+        /* Mobile responsive */
+        @media (max-width: 768px) {
+          .left-panel { display: none !important; }
+          .left-panel.mobile-show { display: flex !important; position:fixed; top:48px; left:0; bottom:0; z-index:150; width:200px; background:#0d1f3c; box-shadow:4px 0 20px rgba(0,0,0,0.5); }
+          .right-panel { display: none !important; }
+          .right-panel.mobile-show { display:flex !important; position:fixed; bottom:0; left:0; right:0; height:60vh; z-index:150; background:#0d1f3c; border-top:1px solid rgba(201,168,76,0.3); box-shadow:0 -4px 20px rgba(0,0,0,0.5); }
+          .mobile-overlay { display:block !important; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:140; }
+          .mobile-bar { display:flex !important; }
+          .board-size { width: min(calc(100dvh - 130px), calc(100vw - 24px)) !important; }
+        }
+        .mobile-overlay { display:none; }
+        .mobile-bar { display:none; }
       `}</style>
 
       <div suppressHydrationWarning style={{ display:'flex', flexDirection:'column', height:'100dvh', background:'#0a1628', overflow:'hidden', fontFamily:'var(--font-crimson),Georgia,serif', position:'relative' }}>
@@ -351,28 +526,64 @@ export default function GamePage() {
           </div>
         )}
 
+        {/* ── Waiting overlay ───────────────────────────── */}
+        {gameWaiting && !gameOver && (
+          <div style={{ position:'absolute', inset:0, zIndex:150, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', background:'rgba(10,22,40,0.92)', backdropFilter:'blur(4px)' }}>
+            <div style={{ fontSize:'3rem', marginBottom:'1rem' }} className="wait-pulse">♛</div>
+            <div className="spinner" style={{ marginBottom:'1rem' }} />
+            <div style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.1rem', color:'#c9a84c', marginBottom:'0.4rem' }}>Waiting for opponent...</div>
+            <div style={{ fontSize:'0.82rem', color:'#4a5568' }}>Game will start automatically</div>
+          </div>
+        )}
+
+        {/* ── Mobile overlay (closes panels) ────────────── */}
+        {isMobile && (showLeftPanel || showChatDrawer) && (
+          <div className="mobile-overlay" onClick={() => { setShowLeftPanel(false); setShowChatDrawer(false) }} />
+        )}
+
         {/* ── Top bar ───────────────────────────────────── */}
-        <div style={{ height:'48px', background:'rgba(10,22,40,0.97)', borderBottom:'1px solid rgba(201,168,76,0.2)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1rem', paddingTop:'env(safe-area-inset-top, 0px)', flexShrink:0 }}>
+        <div style={{ height:'48px', background:'rgba(10,22,40,0.97)', borderBottom:'1px solid rgba(201,168,76,0.2)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 0.75rem', paddingTop:'env(safe-area-inset-top, 0px)', flexShrink:0 }}>
           <div style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
             <span style={{ fontSize:'1.1rem', color:'#c9a84c' }}>♛</span>
             <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'0.9rem', color:'#c9a84c', letterSpacing:'0.04em' }}>Chess Lobby</span>
           </div>
-          <div style={{ fontSize:'0.9rem', color:'#e8e0d0', display:'flex', alignItems:'center', gap:'0.4rem' }}>
+          <div style={{ fontSize:'0.88rem', color:'#e8e0d0', display:'flex', alignItems:'center', gap:'0.4rem' }}>
             <span>{currentTurn === 'w' ? '⚪' : '⚫'}</span>
-            <span>{currentTurn === 'w' ? "White's Turn" : "Black's Turn"}</span>
+            <span style={{ display: isMobile ? 'none' : 'inline' }}>{currentTurn === 'w' ? "White's Turn" : "Black's Turn"}</span>
           </div>
-          <div style={{ display:'flex', gap:'0.5rem' }}>
-            <button onClick={() => getSocket().emit('game:draw-offer', { gameId: gameInfo?.gameId })} style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.8rem', borderRadius:'6px', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>🤝 Draw</button>
-            <button onClick={() => getSocket().emit('game:resign', { gameId: gameInfo?.gameId })} style={{ border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#ef4444', padding:'0.3rem 0.8rem', borderRadius:'6px', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>🏳️ Resign</button>
-            <Link href="/lobby" style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.7rem', borderRadius:'6px', fontSize:'0.82rem', textDecoration:'none', display:'flex', alignItems:'center' }}>🏠</Link>
+          <div style={{ display:'flex', gap:'0.4rem' }}>
+            <button onClick={handleDraw} style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>🤝 Draw</button>
+            <button onClick={handleResign} style={{ border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#ef4444', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>🏳️ Resign</button>
+            <Link href="/lobby" style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', textDecoration:'none', display:'flex', alignItems:'center' }}>🏠</Link>
           </div>
+        </div>
+
+        {/* ── Status / draw offer banners ───────────────── */}
+        {statusMsg && (
+          <div style={{ background:'rgba(201,168,76,0.12)', borderBottom:'1px solid rgba(201,168,76,0.25)', padding:'0.5rem 1rem', textAlign:'center', fontSize:'0.83rem', color:'#c9a84c', flexShrink:0 }}>
+            ⚠️ {statusMsg}
+          </div>
+        )}
+        {drawOfferReceived && (
+          <div style={{ background:'rgba(34,197,94,0.1)', borderBottom:'1px solid rgba(34,197,94,0.3)', padding:'0.5rem 1rem', display:'flex', alignItems:'center', justifyContent:'center', gap:'1rem', fontSize:'0.85rem', color:'#e8e0d0', flexShrink:0 }}>
+            <span>🤝 Opponent offers a draw</span>
+            <button onClick={acceptDraw} style={{ background:'#22c55e', color:'#0a1628', border:'none', borderRadius:'5px', padding:'0.25rem 0.75rem', fontSize:'0.8rem', fontWeight:700, cursor:'pointer' }}>Accept</button>
+            <button onClick={declineDraw} style={{ background:'transparent', color:'#ef4444', border:'1px solid rgba(239,68,68,0.5)', borderRadius:'5px', padding:'0.25rem 0.75rem', fontSize:'0.8rem', cursor:'pointer' }}>Decline</button>
+          </div>
+        )}
+
+        {/* ── Mobile bar ─────────────────────────────────── */}
+        <div className="mobile-bar" style={{ padding:'0.4rem 0.75rem', background:'rgba(10,22,40,0.8)', borderBottom:'1px solid rgba(201,168,76,0.1)', gap:'0.5rem', flexShrink:0 }}>
+          <button onClick={() => { setShowLeftPanel(p => !p); setShowChatDrawer(false) }} style={{ background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#c9a84c', padding:'0.3rem 0.7rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer' }}>📋 Moves</button>
+          <button onClick={() => { setShowChatDrawer(p => !p); setShowLeftPanel(false) }} style={{ background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#c9a84c', padding:'0.3rem 0.7rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer' }}>💬 Chat</button>
+          <button onClick={() => setBoardFlipped(p => !p)} style={{ background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#c9a84c', padding:'0.3rem 0.7rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer' }}>🔄 Flip</button>
         </div>
 
         {/* ── Main area ─────────────────────────────────── */}
         <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
 
           {/* Left panel */}
-          <div style={{ width:'clamp(180px,15vw,220px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderRight:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
+          <div className={`left-panel${isMobile && showLeftPanel ? ' mobile-show' : ''}`} style={{ width:'clamp(180px,15vw,220px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderRight:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
 
             {/* Opponent */}
             <div style={{ padding:'0.75rem', borderBottom:'1px solid rgba(201,168,76,0.1)', background: currentTurn !== myColor ? 'rgba(201,168,76,0.04)' : 'transparent', flexShrink:0 }}>
@@ -448,7 +659,7 @@ export default function GamePage() {
             </div>
 
             {/* Board */}
-            <div style={{ position:'relative', width:'min(calc(100dvh - 80px), calc(100vw - 500px))', maxWidth:'520px', aspectRatio:'1', flexShrink:0 }}>
+            <div className="board-size" style={{ position:'relative', width:'min(calc(100dvh - 80px), calc(100vw - 500px))', maxWidth:'520px', aspectRatio:'1', flexShrink:0 }}>
               <div style={{ position:'relative', paddingLeft:'1.4rem', paddingBottom:'1.4rem', width:'100%', height:'100%', boxSizing:'border-box' }}>
 
                 {rankLabels.map((rank, ri) => (
@@ -488,7 +699,7 @@ export default function GamePage() {
           </div>
 
           {/* Right panel — chat/voice */}
-          <div style={{ width:'clamp(260px,20vw,300px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderLeft:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
+          <div className={`right-panel${isMobile && showChatDrawer ? ' mobile-show' : ''}`} style={{ width:'clamp(260px,20vw,300px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderLeft:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
 
             <div style={{ display:'flex', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
               {(['chat','voice'] as const).map(tab => (
@@ -528,19 +739,58 @@ export default function GamePage() {
             )}
 
             {activeTab === 'voice' && (
-              <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'1.5rem', padding:'1.5rem' }}>
+              <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'1.25rem', padding:'1.5rem', textAlign:'center' }}>
+
+                {/* Avatar circles */}
                 <div style={{ display:'flex', gap:'2rem' }}>
-                  {[{ label: opponentName, init: opponentName[0]?.toUpperCase() || 'O' }, { label: myName, init: myName[0]?.toUpperCase() || 'Y' }].map(p => (
-                    <div key={p.label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.35rem' }}>
-                      <div style={{ width:'50px', height:'50px', borderRadius:'50%', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(201,168,76,0.3)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.1rem', color:'#c9a84c' }}>{p.init}</div>
-                      <span style={{ fontSize:'0.76rem', color:'#9aa5b4', textAlign:'center' }}>{p.label}</span>
+                  {[
+                    { label: opponentName, init: opponentName[0]?.toUpperCase() || 'O' },
+                    { label: myName,       init: myName[0]?.toUpperCase() || 'Y' },
+                  ].map(p => (
+                    <div key={p.label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.4rem' }}>
+                      <div className={voiceState === 'connected' ? 'voice-ring' : ''} style={{ width:'52px', height:'52px', borderRadius:'50%', background:'rgba(255,255,255,0.08)', border:`1px solid ${voiceState === 'connected' ? '#c9a84c' : 'rgba(201,168,76,0.3)'}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.15rem', color:'#c9a84c' }}>
+                        {p.init}
+                      </div>
+                      <span style={{ fontSize:'0.72rem', color:'#9aa5b4' }}>{p.label}</span>
                     </div>
                   ))}
                 </div>
-                {voiceJoined
-                  ? <button onClick={() => setVoiceJoined(false)} style={{ background:'transparent', color:'#c9a84c', border:'1.5px solid #c9a84c', borderRadius:'8px', padding:'0.65rem 1.75rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer' }}>Mute</button>
-                  : <button onClick={() => setVoiceJoined(true)} style={{ background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.65rem 1.75rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer' }}>Join Voice</button>
-                }
+
+                {/* State text */}
+                <div style={{ fontSize:'0.82rem', color: voiceState === 'error' ? '#ef4444' : voiceState === 'connected' ? '#22c55e' : '#9aa5b4' }}>
+                  {voiceState === 'idle'       && 'Click to join voice chat'}
+                  {voiceState === 'connecting' && '⏳ Connecting...'}
+                  {voiceState === 'connected'  && '✓ Voice connected'}
+                  {voiceState === 'error'      && '❌ Microphone access denied'}
+                </div>
+
+                {/* Controls */}
+                {voiceState === 'idle' && (
+                  <button onClick={startVoice} style={{ background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.65rem 1.75rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer' }}>
+                    Join Voice 🎙️
+                  </button>
+                )}
+
+                {voiceState === 'connecting' && (
+                  <div className="spinner" />
+                )}
+
+                {voiceState === 'connected' && (
+                  <div style={{ display:'flex', gap:'0.5rem' }}>
+                    <button onClick={toggleMute} style={{ background:'rgba(201,168,76,0.1)', color:'#c9a84c', border:'1px solid rgba(201,168,76,0.4)', borderRadius:'7px', padding:'0.5rem 1rem', fontSize:'0.85rem', cursor:'pointer' }}>
+                      {isMuted ? '🔊 Unmute' : '🔇 Mute'}
+                    </button>
+                    <button onClick={stopVoice} style={{ background:'rgba(239,68,68,0.1)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)', borderRadius:'7px', padding:'0.5rem 1rem', fontSize:'0.85rem', cursor:'pointer' }}>
+                      🔴 Leave
+                    </button>
+                  </div>
+                )}
+
+                {voiceState === 'error' && (
+                  <button onClick={startVoice} style={{ background:'rgba(201,168,76,0.1)', color:'#c9a84c', border:'1px solid rgba(201,168,76,0.4)', borderRadius:'7px', padding:'0.5rem 1rem', fontSize:'0.85rem', cursor:'pointer' }}>
+                    Try Again
+                  </button>
+                )}
               </div>
             )}
           </div>

@@ -11,12 +11,6 @@ const TIME_CONTROLS = [
   { emoji: '📚', time: '10 min', mode: 'Rapid',  seconds: 600 },
 ]
 
-const LIVE_GAMES = [
-  { p1: 'Magnus_C',      e1: 2847, p2: 'Hikaru_N',    e2: 2783, time: '3+0',  id: 1 },
-  { p1: 'GrandMaster99', e1: 1920, p2: 'ChessKing',   e2: 1875, time: '10+0', id: 2 },
-  { p1: 'BlitzQueen',    e1: 1650, p2: 'TacticsGuru', e2: 1620, time: '1+0',  id: 3 },
-]
-
 type ChatMsg = { user: string; text: string; time: string; isSystem: boolean }
 const INITIAL_MSGS: ChatMsg[] = [
   { user: 'Magnus_C',   text: 'GG everyone! Great games today',          time: '2m ago',   isSystem: false },
@@ -47,6 +41,10 @@ export default function LobbyPage() {
   // Online count
   const [onlineCount, setOnlineCount] = useState<number | null>(null)
 
+  // Live games
+  const [liveGames, setLiveGames]     = useState<any[]>([])
+  const [pageLoading, setPageLoading] = useState(true)
+
   // Chat
   const [chatInput, setChatInput]   = useState('')
   const [chatFocused, setChatFocused] = useState(false)
@@ -58,6 +56,7 @@ export default function LobbyPage() {
     setMounted(true)
     if (!isLoggedIn()) { window.location.href = '/login'; return }
     setUser(getUser())
+    setTimeout(() => setPageLoading(false), 600)
   }, [])
 
   // ── Search timer ─────────────────────────────────────────────
@@ -67,7 +66,21 @@ export default function LobbyPage() {
     return () => clearInterval(id)
   }, [searching])
 
-  // ── Chat auto-scroll ─────────────────────────────────────────
+  // ── Live games fetch ──────────────────────────────────────────
+  useEffect(() => {
+    async function fetchLiveGames() {
+      try {
+        const res = await fetch('http://localhost:4000/games/live')
+        const data = await res.json()
+        setLiveGames(data.games || [])
+      } catch {}
+    }
+    fetchLiveGames()
+    const interval = setInterval(fetchLiveGames, 10000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // ── Chat auto-scroll ──────────────────────────────────────────
   useEffect(() => {
     if (chatScrollRef.current)
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
@@ -116,6 +129,16 @@ export default function LobbyPage() {
   }, [])
 
   if (!mounted) return null
+
+  if (pageLoading) {
+    return (
+      <div style={{ display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', height:'100vh', background:'#0a1628', gap:'1rem' }}>
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        <div style={{ width:'44px', height:'44px', border:'3px solid rgba(201,168,76,0.2)', borderTopColor:'#c9a84c', borderRadius:'50%', animation:'spin 0.8s linear infinite' }} />
+        <span style={{ color:'#c9a84c', fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1rem', letterSpacing:'0.05em' }}>Connecting to Chess Lobby...</span>
+      </div>
+    )
+  }
 
   // ── Handlers ──────────────────────────────────────────────────
   function handleQuickPlay(seconds: number) {
@@ -190,6 +213,14 @@ export default function LobbyPage() {
         .chat-scroll::-webkit-scrollbar { width: 4px; }
         .chat-scroll::-webkit-scrollbar-track { background: transparent; }
         .chat-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        @media (max-width: 768px) {
+          .lobby-main { flex-direction: column !important; padding: 1rem !important; gap: 1rem !important; }
+          .lobby-left { min-width: 0 !important; }
+          .lobby-right { min-height: 320px !important; }
+          .time-grid { grid-template-columns: 1fr 1fr !important; }
+        }
       `}</style>
 
       <div style={{ display:'flex', flexDirection:'column', backgroundColor:'#0a1628', minHeight:'100vh', fontFamily:'var(--font-crimson),Georgia,serif' }}>
@@ -224,10 +255,10 @@ export default function LobbyPage() {
         </div>
 
         {/* MAIN */}
-        <div style={{ flex:1, display:'flex', gap:'1.5rem', padding:'1.5rem', maxWidth:'1400px', width:'100%', margin:'0 auto', boxSizing:'border-box' }}>
+        <div className="lobby-main" style={{ flex:1, display:'flex', gap:'1.5rem', padding:'1.5rem', maxWidth:'1400px', width:'100%', margin:'0 auto', boxSizing:'border-box' }}>
 
           {/* LEFT COLUMN */}
-          <div style={{ flex:1.5, display:'flex', flexDirection:'column', gap:'1.5rem', minWidth:0 }}>
+          <div className="lobby-left" style={{ flex:1.5, display:'flex', flexDirection:'column', gap:'1.5rem', minWidth:0 }}>
 
             {/* Quick Play */}
             <div>
@@ -235,7 +266,7 @@ export default function LobbyPage() {
                 <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.2rem', color:'#e8e0d0', margin:0 }}>Quick Play</h2>
               </div>
 
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+              <div className="time-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
                 {TIME_CONTROLS.map(tc => {
                   const isSel = selectedTime === tc.seconds
                   return (
@@ -309,23 +340,47 @@ export default function LobbyPage() {
 
             {/* Live Games */}
             <div>
-              <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem', marginBottom:'0.75rem' }}>
+              <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem', marginBottom:'0.75rem', display:'flex', alignItems:'center', gap:'0.6rem' }}>
                 <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.2rem', color:'#e8e0d0', margin:0 }}>Live Games</h2>
+                {liveGames.length > 0 && (
+                  <span style={{ background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#ef4444', padding:'0.1rem 0.5rem', borderRadius:'999px', fontSize:'0.7rem' }}>
+                    {liveGames.length} live
+                  </span>
+                )}
               </div>
-              {LIVE_GAMES.map(g => (
-                <div key={g.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:'10px', padding:'0.9rem 1.1rem', marginBottom:'0.6rem', gap:'0.75rem' }}>
-                  <div style={{ flex:1, minWidth:0 }}>
-                    <div style={{ fontSize:'0.88rem', color:'#e8e0d0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{g.p1} <span style={{ color:'#4a5568' }}>({g.e1})</span> vs {g.p2} <span style={{ color:'#4a5568' }}>({g.e2})</span></div>
-                  </div>
-                  <span style={{ border:'1px solid rgba(201,168,76,0.3)', background:'rgba(201,168,76,0.07)', color:'#c9a84c', padding:'0.2rem 0.6rem', borderRadius:'999px', fontSize:'0.75rem', whiteSpace:'nowrap' }}>⚡ {g.time}</span>
-                  <button style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.85rem', borderRadius:'6px', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>Watch</button>
+
+              {liveGames.length === 0 ? (
+                <div style={{ background:'rgba(255,255,255,0.02)', border:'1px dashed rgba(201,168,76,0.2)', borderRadius:'10px', padding:'2rem', textAlign:'center', color:'#4a5568', fontSize:'0.88rem' }}>
+                  No live games right now
+                  <div style={{ fontSize:'0.78rem', marginTop:'0.3rem', color:'#374151' }}>Be the first to start a match!</div>
                 </div>
-              ))}
+              ) : (
+                liveGames.map((g: any) => (
+                  <div key={g.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:'10px', padding:'0.9rem 1.1rem', marginBottom:'0.6rem', gap:'0.75rem' }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:'0.88rem', color:'#e8e0d0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {g.whitePlayer?.username} <span style={{ color:'#4a5568' }}>({g.whitePlayer?.eloRating})</span>
+                        {' vs '}
+                        {g.blackPlayer?.username} <span style={{ color:'#4a5568' }}>({g.blackPlayer?.eloRating})</span>
+                      </div>
+                      {g._count?.spectators > 0 && (
+                        <div style={{ fontSize:'0.72rem', color:'#4a5568', marginTop:'0.15rem' }}>👁 {g._count.spectators} watching</div>
+                      )}
+                    </div>
+                    <span style={{ border:'1px solid rgba(201,168,76,0.3)', background:'rgba(201,168,76,0.07)', color:'#c9a84c', padding:'0.2rem 0.6rem', borderRadius:'999px', fontSize:'0.75rem', whiteSpace:'nowrap' }}>
+                      ⚡ {g.timeControl}s
+                    </span>
+                    <button onClick={() => { window.location.href = '/spectate?gameId=' + g.id }} style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.85rem', borderRadius:'6px', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
+                      👁 Watch
+                    </button>
+                  </div>
+                ))
+              )}
             </div>
           </div>
 
           {/* RIGHT COLUMN — Lobby Chat */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden', minWidth:0, minHeight:'500px' }}>
+          <div className="lobby-right" style={{ flex:1, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden', minWidth:0, minHeight:'500px' }}>
             <div style={{ padding:'0.9rem 1.1rem', borderBottom:'1px solid rgba(201,168,76,0.15)', display:'flex', alignItems:'center', gap:'0.5rem', flexShrink:0 }}>
               <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', color:'#e8e0d0', fontSize:'1rem', fontWeight:700 }}>Lobby Chat</span>
               <span style={{ color:'#22c55e', fontSize:'0.7rem' }}>●</span>
