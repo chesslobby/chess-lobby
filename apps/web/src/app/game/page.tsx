@@ -137,6 +137,10 @@ export default function GamePage() {
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
   }, [messages])
 
+  // ── Mount guard (prevents localStorage hydration mismatch) ──
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
   // ── Mobile detection ─────────────────────────────────────────
   useEffect(() => {
     const check = () => setIsMobile(window.innerWidth < 768)
@@ -414,8 +418,7 @@ export default function GamePage() {
   function sendMessage() {
     if (!chatInput.trim() || !gameInfo) return
     getSocket().emit('chat:send', { gameId: gameInfo.gameId, message: chatInput.trim(), type: 'text' })
-    const user = getUser()
-    setMessages(prev => [...prev, { sender: user?.username || 'You', text: chatInput.trim(), self: true }])
+    setMessages(prev => [...prev, { sender: myName, text: chatInput.trim(), self: true }])
     setChatInput('')
   }
 
@@ -444,7 +447,8 @@ export default function GamePage() {
   }
 
   // ── Derived values ───────────────────────────────────────────
-  const user         = getUser()
+  // Use mounted guard — getUser() reads localStorage, which doesn't exist on server
+  const user         = mounted ? getUser() : null
   const myName       = user?.username || 'You'
   const myElo        = user?.eloRating || 1200
   const opponentName = gameInfo?.opponent?.username || 'Opponent'
@@ -588,7 +592,7 @@ export default function GamePage() {
             {/* Opponent */}
             <div style={{ padding:'0.75rem', borderBottom:'1px solid rgba(201,168,76,0.1)', background: currentTurn !== myColor ? 'rgba(201,168,76,0.04)' : 'transparent', flexShrink:0 }}>
               <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                <div style={{ width:'30px', height:'30px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#e8e0d0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', flexShrink:0 }}>
+                <div suppressHydrationWarning style={{ width:'30px', height:'30px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#e8e0d0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', flexShrink:0 }}>
                   {opponentName[0]?.toUpperCase() || 'O'}
                 </div>
                 <div style={{ minWidth:0 }}>
@@ -636,7 +640,7 @@ export default function GamePage() {
                 </div>
               )}
               <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                <div style={{ width:'30px', height:'30px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#e8e0d0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', flexShrink:0 }}>
+                <div suppressHydrationWarning style={{ width:'30px', height:'30px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#e8e0d0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', flexShrink:0 }}>
                   {myName[0]?.toUpperCase() || 'Y'}
                 </div>
                 <div style={{ minWidth:0 }}>

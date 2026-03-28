@@ -23,28 +23,44 @@ interface ActiveGame {
 }
 
 // gameId → ActiveGame
-const activeGames = new Map<string, ActiveGame>()
+const activeGames  = new Map<string, ActiveGame>()
+// gameId → Set of userIds that have sent game:ready
+const readyPlayers = new Map<string, Set<string>>()
 
 export function registerGameHandlers(io: Server, socket: Socket) {
   const { userId } = socket.data
 
   // ── Player ready (both players have loaded) ────────────────
-  socket.on('game:ready', ({ gameId }: { gameId: string }) => {
-    const game = activeGames.get(gameId)
+  socket.on('game:ready', async ({ gameId }: { gameId: string }) => {
+    // Track this player as ready
+    if (!readyPlayers.has(gameId)) readyPlayers.set(gameId, new Set())
+    readyPlayers.get(gameId)!.add(userId)
 
-    if (!game) {
-      // First player ready — initialise game state
-      initActiveGame(io, socket, gameId)
-      return
+    // Initialise game state on first ready (awaited this time)
+    if (!activeGames.has(gameId)) {
+      await initActiveGame(io, socket, gameId)
     }
 
-    // Second player ready — start clock
-    startClock(io, gameId)
-    io.to(gameId).emit('game:start', {
-      fen: game.chess.fen(),
-      turn: game.chess.turn(),
-      clocks: game.clocks,
-    })
+    const game = activeGames.get(gameId)
+    if (!game) return
+
+    // Update socket ID for this player (handles reconnects too)
+    if (userId === game.whiteId) game.whiteSocketId = socket.id
+    if (userId === game.blackId) game.blackSocketId = socket.id
+
+    // Start only when BOTH players have checked in
+    const ready = readyPlayers.get(gameId)!
+    if (ready.size >= 2) {
+      readyPlayers.delete(gameId)
+      startClock(io, gameId)
+      io.to(gameId).emit('game:start', {
+        fen:    game.chess.fen(),
+        turn:   game.chess.turn(),
+        clocks: game.clocks,
+        white:  { id: game.whiteId },
+        black:  { id: game.blackId },
+      })
+    }
   })
 
   // ── Player makes a move ────────────────────────────────────
@@ -142,9 +158,13 @@ export function registerGameHandlers(io: Server, socket: Socket) {
 async function initActiveGame(io: Server, socket: Socket, gameId: string) {
   const dbGame = await prisma.game.findUnique({
     where: { id: gameId },
-    include: {
-      whitePlayer: { select: { id: true } },
-      blackPlayer: { select: { id: true } },
+    select: {
+      id:            true,
+      whitePlayerId: true,
+      blackPlayerId: true,
+      timeControl:   true,
+      whiteEloBefore: true,
+      blackEloBefore: true,
     },
   })
 
@@ -153,26 +173,23 @@ async function initActiveGame(io: Server, socket: Socket, gameId: string) {
     return
   }
 
-  // Find sockets for white and black
-  const roomSockets = await io.in(gameId).fetchSockets()
-  const whiteSock = roomSockets.find(s => s.data.userId === dbGame.whitePlayerId)
-  const blackSock = roomSockets.find(s => s.data.userId === dbGame.blackPlayerId)
-
+  // Assign the current socket's ID to whichever colour this player is.
+  // The second player's socket ID will be filled in when they call game:ready.
   const game: ActiveGame = {
-    chess: new Chess(),
-    whiteId: dbGame.whitePlayerId,
-    blackId: dbGame.blackPlayerId,
-    whiteSocketId: whiteSock?.id ?? '',
-    blackSocketId: blackSock?.id ?? '',
+    chess:         new Chess(),
+    whiteId:       dbGame.whitePlayerId,
+    blackId:       dbGame.blackPlayerId,
+    whiteSocketId: socket.data.userId === dbGame.whitePlayerId ? socket.id : '',
+    blackSocketId: socket.data.userId === dbGame.blackPlayerId ? socket.id : '',
     clocks: {
       w: dbGame.timeControl * 1000,
       b: dbGame.timeControl * 1000,
     },
-    lastTick: Date.now(),
-    timeControl: dbGame.timeControl,
+    lastTick:      Date.now(),
+    timeControl:   dbGame.timeControl,
     clockInterval: null,
     drawOfferedBy: null,
-    pgn: [],
+    pgn:           [],
   }
 
   activeGames.set(gameId, game)
