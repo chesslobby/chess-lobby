@@ -105,9 +105,15 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.2
         version: 9.0.3
+      prisma:
+        specifier: ^5.22.0
+        version: 5.22.0
       socket.io:
         specifier: ^4.7.0
         version: 4.8.3
+      tsx:
+        specifier: ^4.9.0
+        version: 4.21.0
       zod:
         specifier: ^3.22.0
         version: 3.25.76
@@ -121,12 +127,6 @@ importers:
       '@types/node':
         specifier: ^20.11.0
         version: 20.19.37
-      prisma:
-        specifier: ^5.10.0
-        version: 5.22.0
-      tsx:
-        specifier: ^4.7.0
-        version: 4.21.0
       typescript:
         specifier: ^5.4.0
         version: 5.9.3

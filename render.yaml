@@ -2,9 +2,6 @@ services:
   - type: web
     name: chess-lobby-server
     runtime: node
-    buildCommand: npm install --prefix apps/server && npm run build --prefix apps/server
-    startCommand: npm start --prefix apps/server
-    envVars:
-      - key: NODE_ENV
-        value: production
+    buildCommand: cd apps/server && npm install && npm install prisma --save-dev && npx prisma generate
+    startCommand: cd apps/server && node -e "require('dotenv').config()" && npx tsx src/index.ts
     plan: free
