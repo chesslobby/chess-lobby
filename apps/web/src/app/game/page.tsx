@@ -118,6 +118,14 @@ export default function GamePage() {
   const [isMuted, setIsMuted]         = useState(false)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
 
+  // New feature states
+  const [showPromotion, setShowPromotion]   = useState(false)
+  const [pendingMove, setPendingMove]       = useState<{from:string,to:string}|null>(null)
+  const [lastMove, setLastMove]             = useState<{from:string,to:string}|null>(null)
+  const [rematchOffered, setRematchOffered] = useState(false)
+  const [rematchReceived, setRematchReceived] = useState(false)
+  const [showResignConfirm, setShowResignConfirm] = useState(false)
+
   // Refs for stale-closure safety
   const fenRef          = useRef(INITIAL_FEN)
   const myColorRef      = useRef<'w' | 'b'>('w')
@@ -217,7 +225,7 @@ export default function GamePage() {
       setGameWaiting(false)
     })
 
-    socket.on('game:move', ({ fen: moveFen, clocks: c, san }: any) => {
+    socket.on('game:move', ({ from: mFrom, to: mTo, fen: moveFen, clocks: c, san }: any) => {
       const { Chess } = require('chess.js')
       const ch = new Chess()
       ch.load(moveFen)
@@ -243,6 +251,7 @@ export default function GamePage() {
       setChess(ch); setFen(moveFen); setBoard(fenToBoard(moveFen))
       setCurrentTurn(ch.turn())
       if (c) setClocks(c)
+      if (mFrom && mTo) setLastMove({ from: mFrom, to: mTo })
       setSelectedSquare(null); setValidMoves([])
 
       if (san) {
@@ -286,9 +295,14 @@ export default function GamePage() {
       setMessages(prev => [...prev, { sender: senderName, text: message, self: false }])
     })
 
+    socket.on('game:rematch-offered', () => {
+      setRematchReceived(true)
+      showToast('Opponent wants a rematch!', 'info')
+    })
+
     return () => {
       ['connect','disconnect','game:start','game:move','game:clock','game:end','game:invalid-move',
-       'game:draw-offered','game:opponent-disconnected','chat:receive'].forEach(ev => socket.off(ev))
+       'game:draw-offered','game:opponent-disconnected','chat:receive','game:rematch-offered'].forEach(ev => socket.off(ev))
     }
   }, [mounted])
 
@@ -387,46 +401,72 @@ export default function GamePage() {
     return FILES[dCol] + (8 - dRow)
   }
 
+  // ── Make move (optimistic) ────────────────────────────────────
+  function makeMove(from: string, to: string, promotion: string) {
+    getSocket().emit('game:move', { gameId: gameInfo?.gameId, from, to, promotion })
+    try {
+      const { Chess } = require('chess.js')
+      const newChess = new Chess()
+      newChess.load(chess!.fen())
+      const result = newChess.move({ from, to, promotion })
+      if (result) {
+        if (result.captured) {
+          const cap = myColor === 'w' ? result.captured : result.captured.toUpperCase()
+          setCaptured(prev => ({ ...prev, [myColor]: [...prev[myColor], cap] }))
+          playCaptureSound()
+        } else {
+          playMoveSound()
+        }
+        if (newChess.inCheck()) playCheckSound()
+        const nf = newChess.fen()
+        fenRef.current = nf
+        setChess(newChess); setFen(nf); setBoard(fenToBoard(nf)); setCurrentTurn(newChess.turn())
+        setLastMove({ from, to })
+      }
+    } catch {}
+  }
+
   // ── Square click ─────────────────────────────────────────────
   function handleSquareClick(dRow: number, dCol: number) {
     if (gameOver || !chess || gameWaiting) return
     if (chess.turn() !== myColor) return
 
     const sq = toSquare(dRow, dCol)
-    console.log('Clicked:', sq, 'myColor:', myColor, 'turn:', chess?.turn(), 'piece:', chess?.get(sq as any))
 
     if (selectedSquare) {
       if (validMoves.includes(sq)) {
-        getSocket().emit('game:move', { gameId: gameInfo?.gameId, from: selectedSquare, to: sq, promotion: 'q' })
-        try {
-          const { Chess } = require('chess.js')
-          const opt = new Chess(); opt.load(fen)
-          const mv = opt.move({ from: selectedSquare, to: sq, promotion: 'q' })
-          if (mv) {
-            if (mv.captured) {
-              const cap = myColor === 'w' ? mv.captured : mv.captured.toUpperCase()
-              setCaptured(prev => ({ ...prev, [myColor]: [...prev[myColor], cap] }))
-              playCaptureSound()
-            } else { playMoveSound() }
-            if (opt.inCheck()) playCheckSound()
-            const nf = opt.fen()
-            fenRef.current = nf
-            setChess(opt); setFen(nf); setBoard(fenToBoard(nf)); setCurrentTurn(opt.turn())
-          }
-        } catch {}
-        setSelectedSquare(null); setValidMoves([])
+        const piece = chess.get(selectedSquare as any)
+        const isPromotion = piece?.type === 'p' &&
+          ((myColor === 'w' && sq[1] === '8') || (myColor === 'b' && sq[1] === '1'))
+
+        if (isPromotion) {
+          setPendingMove({ from: selectedSquare, to: sq })
+          setShowPromotion(true)
+          setSelectedSquare(null)
+          setValidMoves([])
+          return
+        }
+
+        makeMove(selectedSquare, sq, 'q')
+        setSelectedSquare(null)
+        setValidMoves([])
       } else {
-        const piece = chess.get(sq)
+        const piece = chess.get(sq as any)
         if (piece && piece.color === myColor) {
           setSelectedSquare(sq)
-          setValidMoves(chess.moves({ square: sq, verbose: true }).map((m: any) => m.to))
-        } else { setSelectedSquare(null); setValidMoves([]) }
+          const moves = chess.moves({ square: sq as any, verbose: true }) as any[]
+          setValidMoves(moves.map((m: any) => m.to))
+        } else {
+          setSelectedSquare(null)
+          setValidMoves([])
+        }
       }
     } else {
-      const piece = chess.get(sq)
+      const piece = chess.get(sq as any)
       if (piece && piece.color === myColor) {
         setSelectedSquare(sq)
-        setValidMoves(chess.moves({ square: sq, verbose: true }).map((m: any) => m.to))
+        const moves = chess.moves({ square: sq as any, verbose: true }) as any[]
+        setValidMoves(moves.map((m: any) => m.to))
       }
     }
   }
@@ -446,9 +486,7 @@ export default function GamePage() {
   }
 
   function handleResign() {
-    if (window.confirm('Are you sure you want to resign?')) {
-      getSocket().emit('game:resign', { gameId: gameInfo?.gameId })
-    }
+    setShowResignConfirm(true)
   }
 
   function acceptDraw() {
@@ -477,6 +515,23 @@ export default function GamePage() {
   const myAdv        = myColor === 'w' ? bal.w : bal.b
   const oppAdv       = myColor === 'w' ? bal.b : bal.w
 
+  // ── Check detection ──────────────────────────────────────────
+  function getKingSquare(color: 'w' | 'b'): string | null {
+    if (!chess) return null
+    const boardArr = chess.board()
+    for (let r = 0; r < 8; r++) {
+      for (let c = 0; c < 8; c++) {
+        const p = boardArr[r][c]
+        if (p && p.type === 'k' && p.color === color) {
+          return String.fromCharCode(97 + c) + (8 - r)
+        }
+      }
+    }
+    return null
+  }
+  const isInCheck = chess?.inCheck?.() || false
+  const kingSquare = isInCheck ? getKingSquare(chess!.turn() as 'w' | 'b') : null
+
   // ── Render ───────────────────────────────────────────────────
   return (
     <>
@@ -503,6 +558,7 @@ export default function GamePage() {
         @keyframes pulseRing { 0%,100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.6); } 50% { box-shadow: 0 0 0 8px rgba(201,168,76,0); } }
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes waitPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
+        @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
         .game-over-card { animation: fadeInScale 0.3s ease both; }
         .voice-ring { animation: pulseRing 1.5s ease-in-out infinite; }
         .wait-pulse { animation: waitPulse 1.4s ease-in-out infinite; }
@@ -524,6 +580,48 @@ export default function GamePage() {
 
       <div suppressHydrationWarning style={{ display:'flex', flexDirection:'column', height:'100dvh', background:'#0a1628', overflow:'hidden', fontFamily:'var(--font-crimson),Georgia,serif', position:'relative' }}>
 
+        {/* ── Pawn promotion dialog ─────────────────────── */}
+        {showPromotion && (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.8)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+            <div style={{ background:'#1a2035', border:'2px solid #c9a84c', borderRadius:12, padding:24, textAlign:'center' }}>
+              <h3 style={{ color:'#c9a84c', marginBottom:16, fontFamily:'var(--font-playfair),Georgia,serif', margin:'0 0 16px' }}>Choose promotion piece</h3>
+              <div style={{ display:'flex', gap:12 }}>
+                {[
+                  { piece:'q', symbol:'♛', name:'Queen' },
+                  { piece:'r', symbol:'♜', name:'Rook' },
+                  { piece:'b', symbol:'♝', name:'Bishop' },
+                  { piece:'n', symbol:'♞', name:'Knight' },
+                ].map(({ piece, symbol, name }) => (
+                  <button key={piece} onClick={() => {
+                    if (pendingMove) makeMove(pendingMove.from, pendingMove.to, piece)
+                    setShowPromotion(false)
+                    setPendingMove(null)
+                  }} style={{ background:'#2a3550', border:'2px solid #3a4560', borderRadius:8, padding:'12px 16px', cursor:'pointer', color:'white', fontSize:36, display:'flex', flexDirection:'column', alignItems:'center', gap:4, transition:'all 0.2s', fontFamily:'initial' }}
+                  onMouseEnter={e => (e.currentTarget.style.borderColor = '#c9a84c')}
+                  onMouseLeave={e => (e.currentTarget.style.borderColor = '#3a4560')}
+                  >
+                    {symbol}
+                    <span style={{ fontSize:12, color:'#aaa', fontFamily:'var(--font-crimson),Georgia,serif' }}>{name}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── Resign confirmation dialog ─────────────────── */}
+        {showResignConfirm && (
+          <div style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.7)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:999 }}>
+            <div style={{ background:'#0d1f3c', border:'1px solid rgba(239,68,68,0.5)', borderRadius:12, padding:28, textAlign:'center', minWidth:260 }}>
+              <p style={{ color:'#e8e0d0', marginBottom:20, fontSize:'1rem', margin:'0 0 20px' }}>Are you sure you want to resign?</p>
+              <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+                <button onClick={() => setShowResignConfirm(false)} style={{ background:'transparent', color:'#c9a84c', border:'1.5px solid rgba(201,168,76,0.5)', borderRadius:8, padding:'0.6rem 1.2rem', fontSize:'0.9rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>Cancel</button>
+                <button onClick={() => { getSocket().emit('game:resign', { gameId: gameInfo?.gameId }); setShowResignConfirm(false) }} style={{ background:'rgba(239,68,68,0.15)', color:'#ef4444', border:'1.5px solid rgba(239,68,68,0.5)', borderRadius:8, padding:'0.6rem 1.2rem', fontSize:'0.9rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>Resign</button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* ── Game-over overlay ─────────────────────────── */}
         {gameOver && (
           <div style={{ position:'absolute', inset:0, zIndex:200, display:'flex', alignItems:'center', justifyContent:'center', background:'rgba(10,22,40,0.88)', backdropFilter:'blur(6px)' }}>
@@ -534,13 +632,27 @@ export default function GamePage() {
               <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'2rem', color:'#c9a84c', margin:'0 0 0.25rem' }}>{gameResult}</h2>
               <p style={{ color:'#9aa5b4', fontSize:'0.95rem', margin:'0 0 0.5rem' }}>{gameResultReason}</p>
               {eloChange !== null && (
-                <div style={{ fontSize:'1.2rem', fontWeight:700, color: eloChange >= 0 ? '#22c55e' : '#ef4444', marginBottom:'1.25rem' }}>
+                <div style={{ fontSize:'1.2rem', fontWeight:700, color: eloChange >= 0 ? '#22c55e' : '#ef4444', margin:'0 0 0.5rem' }}>
                   {eloChange >= 0 ? '+' : ''}{eloChange} Elo
                 </div>
               )}
+              <div style={{ fontSize:'0.8rem', color:'#4a5568', marginBottom:'1.25rem' }}>
+                {moveHistory.length * 2 - (pendingWhite ? 1 : 0)} moves played
+              </div>
+              {/* Rematch */}
+              <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem', marginBottom:'0.75rem' }}>
+                {rematchReceived && (
+                  <button onClick={() => { getSocket().emit('game:rematch-accept', { gameId: gameInfo?.gameId }); localStorage.removeItem('current_game'); window.location.href = '/lobby' }} style={{ background:'#22c55e', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.75rem 1.5rem', fontSize:'0.95rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>✅ Accept Rematch</button>
+                )}
+                {!rematchOffered ? (
+                  <button onClick={() => { getSocket().emit('game:rematch-offer', { gameId: gameInfo?.gameId }); setRematchOffered(true) }} style={{ background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.75rem 1.5rem', fontSize:'0.95rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>🔄 Rematch</button>
+                ) : (
+                  <div style={{ color:'#9aa5b4', fontSize:'0.82rem', padding:'0.4rem' }}>Rematch offered... waiting</div>
+                )}
+              </div>
               <div style={{ display:'flex', gap:'0.75rem', justifyContent:'center' }}>
-                <button onClick={() => { localStorage.removeItem('current_game'); window.location.href = '/lobby' }} style={{ background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.8rem 1.5rem', fontSize:'0.95rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>Play Again</button>
-                <button onClick={() => { localStorage.removeItem('current_game'); window.location.href = '/lobby' }} style={{ background:'transparent', color:'#c9a84c', border:'1.5px solid rgba(201,168,76,0.5)', borderRadius:'8px', padding:'0.8rem 1.5rem', fontSize:'0.95rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>Lobby</button>
+                <button onClick={() => { localStorage.removeItem('current_game'); window.location.href = '/lobby' }} style={{ background:'transparent', color:'#c9a84c', border:'1.5px solid rgba(201,168,76,0.5)', borderRadius:'8px', padding:'0.7rem 1.25rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>New Game</button>
+                <button onClick={() => { localStorage.removeItem('current_game'); window.location.href = '/' }} style={{ background:'transparent', color:'#9aa5b4', border:'1.5px solid rgba(255,255,255,0.15)', borderRadius:'8px', padding:'0.7rem 1.25rem', fontSize:'0.9rem', cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>Home</button>
               </div>
             </div>
           </div>
@@ -583,7 +695,19 @@ export default function GamePage() {
           {/* Right: actions */}
           <div style={{ display:'flex', gap:'0.4rem', flexShrink:0 }}>
             <button onClick={handleDraw} style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>🤝 Draw</button>
-            <button onClick={handleResign} style={{ border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#ef4444', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>🏳️ Resign</button>
+            <button onClick={() => {
+              if (moveHistory.length < 2 && pendingWhite === null) {
+                if (window.confirm('Abort game?')) {
+                  getSocket().emit('game:abort', { gameId: gameInfo?.gameId })
+                  localStorage.removeItem('current_game')
+                  window.location.href = '/lobby'
+                }
+              } else {
+                setShowResignConfirm(true)
+              }
+            }} style={{ border:'1px solid rgba(239,68,68,0.4)', background:'transparent', color:'#ef4444', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
+              {moveHistory.length < 2 && pendingWhite === null ? '🚫 Abort' : '🏳️ Resign'}
+            </button>
             <Link href="/lobby" style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.6rem', borderRadius:'6px', fontSize:'0.78rem', textDecoration:'none', display:'flex', alignItems:'center' }}>🏠</Link>
           </div>
         </div>
@@ -702,18 +826,39 @@ export default function GamePage() {
                 <div style={{ position:'absolute', top:0, left:'1.4rem', right:0, bottom:'1.4rem', display:'grid', gridTemplateColumns:'repeat(8,1fr)', boxShadow:'0 8px 40px rgba(0,0,0,0.6)', border:'2px solid rgba(201,168,76,0.3)', borderRadius:'2px', overflow:'hidden' }}>
                   {displayBoard.map((row, ri) =>
                     row.map((piece, ci) => {
-                      const isLight    = (ri + ci) % 2 === 0
-                      const sq         = toSquare(ri, ci)
-                      const isSelected = selectedSquare === sq
-                      const isValid    = validMoves.includes(sq)
-                      const isBlack    = piece ? piece === piece.toLowerCase() : false
-                      const unicode    = piece ? PIECE_UNICODE[piece] ?? piece : null
-                      let bg = isLight ? theme.light : theme.dark
-                      if (isSelected) bg = 'rgba(201,168,76,0.65)'
+                      const isLight     = (ri + ci) % 2 === 0
+                      const sq          = toSquare(ri, ci)
+                      const isSelected  = selectedSquare === sq
+                      const isValid     = validMoves.includes(sq)
+                      const isLastMoveQ = lastMove && (sq === lastMove.from || sq === lastMove.to)
+                      const isKingCheck = kingSquare === sq && isInCheck
+                      const isBlack     = piece ? piece === piece.toLowerCase() : false
+                      const unicode     = piece ? PIECE_UNICODE[piece] ?? piece : null
                       return (
-                        <div key={`${ri}-${ci}`} className={`board-sq${isValid && !piece ? ' valid-dot' : ''}`} onClick={() => handleSquareClick(ri, ci)} style={{ display:'flex', alignItems:'center', justifyContent:'center', background:bg, cursor:'pointer', aspectRatio:'1', position:'relative', outline: isValid && piece ? '2px solid rgba(201,168,76,0.7)' : 'none', outlineOffset:'-2px' }}>
+                        <div key={`${ri}-${ci}`} className="board-sq" onClick={() => handleSquareClick(ri, ci)} style={{ display:'flex', alignItems:'center', justifyContent:'center', background: isLight ? theme.light : theme.dark, cursor:'pointer', aspectRatio:'1', position:'relative' }}>
+                          {/* z1: last move highlight */}
+                          {isLastMoveQ && (
+                            <div style={{ position:'absolute', inset:0, background:'rgba(255,255,0,0.22)', pointerEvents:'none', zIndex:1 }} />
+                          )}
+                          {/* z2: check indicator */}
+                          {isKingCheck && (
+                            <div style={{ position:'absolute', inset:0, background:'rgba(255,0,0,0.5)', pointerEvents:'none', zIndex:2, animation:'pulse 1s infinite' }} />
+                          )}
+                          {/* z3: selected square */}
+                          {isSelected && (
+                            <div style={{ position:'absolute', inset:0, background:'rgba(201,168,76,0.5)', pointerEvents:'none', zIndex:3 }} />
+                          )}
+                          {/* z4: chess piece */}
                           {unicode && (
-                            <span style={{ fontSize:'clamp(1.1rem,2.8vw,1.75rem)', lineHeight:1, color: isBlack ? '#1a0a00' : '#fff', textShadow: isBlack ? '0 1px 2px rgba(255,255,255,0.4)' : '0 1px 3px rgba(0,0,0,0.8)', userSelect:'none', position:'relative', zIndex:1 }}>{unicode}</span>
+                            <span style={{ fontSize:'clamp(1.1rem,2.8vw,1.75rem)', lineHeight:1, color: isBlack ? '#1a0a00' : '#fff', textShadow: isBlack ? '0 1px 2px rgba(255,255,255,0.4)' : '0 1px 3px rgba(0,0,0,0.8)', userSelect:'none', position:'relative', zIndex:4, transition:'all 0.15s ease-in-out' }}>{unicode}</span>
+                          )}
+                          {/* z5: valid move dot (empty) */}
+                          {isValid && !piece && (
+                            <div style={{ position:'absolute', width:'32%', height:'32%', borderRadius:'50%', background:'rgba(0,0,0,0.25)', top:'50%', left:'50%', transform:'translate(-50%,-50%)', pointerEvents:'none', zIndex:5 }} />
+                          )}
+                          {/* z5: valid move ring (capture) */}
+                          {isValid && piece && (
+                            <div style={{ position:'absolute', inset:0, boxShadow:'inset 0 0 0 4px rgba(0,0,0,0.35)', pointerEvents:'none', zIndex:5 }} />
                           )}
                         </div>
                       )
