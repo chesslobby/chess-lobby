@@ -1,4 +1,4 @@
-export const API_URL = 'http://localhost:4000'
+export const API_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000'
 
 export async function apiPost(endpoint: string, body: any) {
   const res = await fetch(API_URL + endpoint, {

@@ -70,7 +70,7 @@ export default function LobbyPage() {
   useEffect(() => {
     async function fetchLiveGames() {
       try {
-        const res = await fetch('http://localhost:4000/games/live')
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000'}/games/live`)
         const data = await res.json()
         setLiveGames(data.games || [])
       } catch {}

@@ -56,7 +56,7 @@ export default function ProfilePage() {
     setFriendMsg('')
     try {
       const token = localStorage.getItem('chess_token')
-      const res = await fetch(`http://localhost:4000/friends/request/${friendInput.trim()}`, {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000'}/friends/request/${friendInput.trim()}`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${token}` },
       })

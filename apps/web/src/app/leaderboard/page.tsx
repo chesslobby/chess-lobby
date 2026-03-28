@@ -29,7 +29,7 @@ export default function LeaderboardPage() {
   useEffect(() => {
     async function fetchLeaderboard() {
       try {
-        const res = await fetch('http://localhost:4000/users/leaderboard')
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000'}/users/leaderboard`)
         const data = await res.json()
         const list = (data.users || []).map((u: any, i: number) => ({
           rank: i + 1,
