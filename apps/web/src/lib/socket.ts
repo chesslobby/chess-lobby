@@ -25,7 +25,9 @@ export function getSocket(): Socket {
     reconnection: true,
     reconnectionAttempts: 10,
     reconnectionDelay: 1000,
-    transports: ['websocket', 'polling'],
+    transports: ['polling', 'websocket'],  // polling first for Render compatibility
+    upgrade: true,
+    rememberUpgrade: false,
   })
 
   socket.on('connect', () => {
