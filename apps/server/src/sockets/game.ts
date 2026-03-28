@@ -32,6 +32,9 @@ export function registerGameHandlers(io: Server, socket: Socket) {
 
   // ── Player ready (both players have loaded) ────────────────
   socket.on('game:ready', async ({ gameId }: { gameId: string }) => {
+    // JOIN the socket.io room — players navigate to /game with a new socket connection
+    socket.join(gameId)
+
     // Initialize the set if it doesn't exist
     if (!readyPlayers.has(gameId)) {
       readyPlayers.set(gameId, new Set())
@@ -68,7 +71,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
         white: { id: game.whiteId },
         black: { id: game.blackId },
       })
-      console.log(`[Game] Started: ${gameId}`)
+      console.log(`[Game] Started and emitted to room: ${gameId}`)
     }
   })
 
