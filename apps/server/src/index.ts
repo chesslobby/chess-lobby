@@ -44,12 +44,12 @@ app.register(registerGameRoutes,   { prefix: '/games' })
 io.use(authMiddleware)
 
 io.on('connection', (socket) => {
-  app.log.info(`Client connected: ${socket.id} (user: ${socket.data.username})`)
+  console.log(`Client connected: ${socket.id} user: ${socket.data.userId} username: ${socket.data.username}`)
   registerMatchmakingHandlers(io, socket)
   registerGameHandlers(io, socket)
   registerChatHandlers(io, socket)
   socket.on('disconnect', () => {
-    app.log.info(`Client disconnected: ${socket.id}`)
+    console.log(`Client disconnected: ${socket.id}`)
   })
 })
 

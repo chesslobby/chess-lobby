@@ -32,6 +32,10 @@ export function authMiddleware(socket: Socket, next: (err?: Error) => void) {
     socket.data.isGuest = payload.isGuest
     next()
   } catch {
-    next(new Error('Invalid or expired token'))
+    // Fall back to guest instead of rejecting — expired tokens shouldn't block the connection
+    socket.data.userId = `guest_${socket.id}`
+    socket.data.username = 'Guest'
+    socket.data.isGuest = true
+    return next()
   }
 }

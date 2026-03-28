@@ -169,6 +169,8 @@ export default function GamePage() {
 
   // ── Game init + socket ───────────────────────────────────────
   useEffect(() => {
+    if (!mounted) return
+
     const stored = localStorage.getItem('current_game')
     if (!stored) { window.location.href = '/lobby'; return }
 
@@ -184,14 +186,19 @@ export default function GamePage() {
     setClocks({ w: initialMs, b: initialMs })
 
     const socket = getSocket()
-    socket.emit('game:ready', { gameId: info.gameId })
 
-    // Reconnection
+    // Emit immediately (socket may already be connected)
+    socket.emit('game:ready', { gameId: info.gameId })
+    console.log('Emitted game:ready for', info.gameId, '| connected:', socket.connected)
+
+    // Re-emit on connect in case socket wasn't connected yet
     socket.on('connect', () => {
-      if (info.gameId) socket.emit('game:ready', { gameId: info.gameId })
+      console.log('Socket connected, re-emitting game:ready for', info.gameId)
+      socket.emit('game:ready', { gameId: info.gameId })
     })
 
     socket.on('game:start', ({ fen: startFen, clocks: c }: any) => {
+      console.log('game:start received!', { fen: startFen, clocks: c })
       const { Chess } = require('chess.js')
       const ch = new Chess()
       if (startFen) ch.load(startFen)
@@ -275,7 +282,7 @@ export default function GamePage() {
       ['connect','game:start','game:move','game:clock','game:end','game:invalid-move',
        'game:draw-offered','game:opponent-disconnected','chat:receive'].forEach(ev => socket.off(ev))
     }
-  }, [])
+  }, [mounted])
 
   // ── Voice ────────────────────────────────────────────────────
   async function startVoice() {
