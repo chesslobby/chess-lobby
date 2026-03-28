@@ -2,6 +2,12 @@ services:
   - type: web
     name: chess-lobby-server
     runtime: node
-    buildCommand: cd apps/server && npm install && npm install prisma --save-dev && npx prisma generate
-    startCommand: npx tsx apps/server/src/index.ts
+    rootDir: apps/server
+    buildCommand: npm install && npx prisma generate --schema=./prisma/schema.prisma
+    startCommand: npx tsx src/index.ts
     plan: free
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: "20.12.0"
