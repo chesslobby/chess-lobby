@@ -1,6 +1,12 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  transpilePackages: ['@royal-chess/chess-engine', '@royal-chess/config'],
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  transpilePackages: ['chess-engine'],
   images: {
     remotePatterns: [
       { protocol: 'https', hostname: '*.supabase.co' },

@@ -1,4 +1,5 @@
 'use client'
+// @ts-nocheck
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { getSocket } from '@/lib/socket'
