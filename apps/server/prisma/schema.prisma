@@ -54,10 +54,15 @@ model User {
   gamesAsBlack   Game[]         @relation("BlackPlayer")
   sentRequests   Friendship[]   @relation("SentRequests")
   receivedRequests Friendship[] @relation("ReceivedRequests")
-  chatMessages   ChatMessage[]
-  notifications  Notification[]
-  eloHistory     EloHistory[]
-  spectating     Spectator[]
+  chatMessages     ChatMessage[]
+  notifications    Notification[]
+  eloHistory       EloHistory[]
+  spectating       Spectator[]
+  country          String?
+  following        Follow[] @relation("UserFollowing")
+  followers        Follow[] @relation("UserFollowers")
+  blocking         Block[]  @relation("UserBlocking")
+  blockedBy        Block[]  @relation("UserBlocked")
 }
 
 model Game {
@@ -138,4 +143,24 @@ model EloHistory {
   change     Int
   gameId     String?
   recordedAt DateTime @default(now())
+}
+
+model Follow {
+  id          String   @id @default(uuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("UserFollowers", fields: [followerId], references: [id])
+  following   User     @relation("UserFollowing", fields: [followingId], references: [id])
+  @@unique([followerId, followingId])
+}
+
+model Block {
+  id        String   @id @default(uuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("UserBlocking", fields: [blockerId], references: [id])
+  blocked   User     @relation("UserBlocked", fields: [blockedId], references: [id])
+  @@unique([blockerId, blockedId])
 }

@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
+import Link from 'next/link'
 import Navbar from '@/components/Navbar'
 
 const TABS = ['Global', 'This Week', 'Friends']
@@ -9,6 +10,13 @@ function rankMedal(rank: number) {
   if (rank === 2) return '🥈'
   if (rank === 3) return '🥉'
   return null
+}
+
+function getFlag(code: string): string {
+  if (!code) return ''
+  return code.toUpperCase().split('').map(c =>
+    String.fromCodePoint(0x1F1E6 + c.charCodeAt(0) - 65)
+  ).join('')
 }
 
 function rowBg(rank: number) {
@@ -37,6 +45,7 @@ export default function LeaderboardPage() {
           elo: u.eloRating,
           games: u.gamesPlayed,
           winPct: u.gamesPlayed > 0 ? Math.round((u.gamesWon / u.gamesPlayed) * 100) : 0,
+          country: u.country || null,
         }))
         setPlayers(list)
       } catch {
@@ -145,7 +154,8 @@ export default function LeaderboardPage() {
                             <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1px solid rgba(201,168,76,0.25)', color: '#c9a84c', fontSize: '0.8rem', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontFamily: 'var(--font-playfair), Georgia, serif' }}>
                               {player.name[0]}
                             </div>
-                            <span style={{ color: '#e8e0d0', fontSize: '0.92rem' }}>{player.name}</span>
+                            {player.country && <span style={{ fontSize: '1rem', lineHeight: 1 }}>{getFlag(player.country)}</span>}
+                            <Link href={`/profile/${player.name}`} style={{ color: '#e8e0d0', fontSize: '0.92rem', textDecoration: 'none' }}>{player.name}</Link>
                           </div>
                         </td>
                         <td style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.03)', fontWeight: 700, color: '#c9a84c', fontSize: '0.95rem', fontFamily: 'monospace', verticalAlign: 'middle' }}>
