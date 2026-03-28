@@ -2,9 +2,8 @@ services:
   - type: web
     name: chess-lobby-server
     runtime: node
-    rootDir: apps/server
-    buildCommand: npm install && npx prisma generate
-    startCommand: node -r dotenv/config node_modules/.bin/tsx src/index.ts
+    buildCommand: npm install --prefix apps/server && npm run build --prefix apps/server
+    startCommand: npm start --prefix apps/server
     envVars:
       - key: NODE_ENV
         value: production
