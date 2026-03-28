@@ -32,34 +32,43 @@ export function registerGameHandlers(io: Server, socket: Socket) {
 
   // ── Player ready (both players have loaded) ────────────────
   socket.on('game:ready', async ({ gameId }: { gameId: string }) => {
-    // Track this player as ready
-    if (!readyPlayers.has(gameId)) readyPlayers.set(gameId, new Set())
-    readyPlayers.get(gameId)!.add(userId)
+    // Initialize the set if it doesn't exist
+    if (!readyPlayers.has(gameId)) {
+      readyPlayers.set(gameId, new Set())
+    }
 
-    // Initialise game state on first ready (awaited this time)
+    const ready = readyPlayers.get(gameId)!
+    ready.add(userId)
+
+    // Initialise active game if not exists
     if (!activeGames.has(gameId)) {
       await initActiveGame(io, socket, gameId)
     }
 
     const game = activeGames.get(gameId)
-    if (!game) return
+    if (!game) {
+      console.error('[Game] Game not found after init:', gameId)
+      return
+    }
 
-    // Update socket ID for this player (handles reconnects too)
+    // Update socket IDs
     if (userId === game.whiteId) game.whiteSocketId = socket.id
     if (userId === game.blackId) game.blackSocketId = socket.id
 
-    // Start only when BOTH players have checked in
-    const ready = readyPlayers.get(gameId)!
+    console.log(`[Game] Ready: ${socket.data.username} for game ${gameId}. Ready count: ${ready.size}`)
+
+    // Start when both ready — guard against Set being deleted by the other player's concurrent handler
     if (ready.size >= 2) {
       readyPlayers.delete(gameId)
       startClock(io, gameId)
       io.to(gameId).emit('game:start', {
-        fen:    game.chess.fen(),
-        turn:   game.chess.turn(),
+        fen:   game.chess.fen(),
+        turn:  game.chess.turn(),
         clocks: game.clocks,
-        white:  { id: game.whiteId },
-        black:  { id: game.blackId },
+        white: { id: game.whiteId },
+        black: { id: game.blackId },
       })
+      console.log(`[Game] Started: ${gameId}`)
     }
   })
 
