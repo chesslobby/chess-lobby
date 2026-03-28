@@ -3,5 +3,5 @@ services:
     name: chess-lobby-server
     runtime: node
     buildCommand: cd apps/server && npm install && npm install prisma --save-dev && npx prisma generate
-    startCommand: cd apps/server && node -e "require('dotenv').config()" && npx tsx src/index.ts
+    startCommand: npx tsx apps/server/src/index.ts
     plan: free
