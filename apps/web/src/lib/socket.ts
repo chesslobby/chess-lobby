@@ -5,14 +5,11 @@ const SERVER_URL = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000'
 let socket: Socket | null = null
 
 export function getSocket(): Socket {
-  // Reuse only if already connected
-  if (socket?.connected) return socket
-
-  // Tear down any stale/disconnected instance before creating a new one
-  if (socket) {
-    socket.disconnect()
-    socket = null
-  }
+  // Return existing socket regardless of connection state.
+  // socket.io reconnects automatically — never destroy a socket that is
+  // between reconnect attempts or we lose all registered event listeners
+  // (game:move, game:start, etc.) and the socket room membership.
+  if (socket) return socket
 
   let token: string | null = null
   try {
@@ -23,8 +20,9 @@ export function getSocket(): Socket {
     auth: { token },
     autoConnect: true,
     reconnection: true,
-    reconnectionAttempts: 10,
+    reconnectionAttempts: 20,
     reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
     transports: ['polling', 'websocket'],  // polling first for Render compatibility
     upgrade: true,
     rememberUpgrade: false,
