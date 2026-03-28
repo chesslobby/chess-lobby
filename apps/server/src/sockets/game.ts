@@ -251,68 +251,73 @@ async function endGame(
   if (game.clockInterval) clearInterval(game.clockInterval)
   activeGames.delete(gameId)
 
-  // Calculate Elo
-  const [whiteUser, blackUser] = await Promise.all([
-    prisma.user.findUnique({ where: { id: game.whiteId } }),
-    prisma.user.findUnique({ where: { id: game.blackId } }),
-  ])
+  // DB updates are best-effort — a connection drop must not prevent the clients
+  // from receiving game:end and returning to the lobby.
+  let eloChanges: Record<string, any> = {}
 
-  if (!whiteUser || !blackUser) return
+  try {
+    const [whiteUser, blackUser] = await Promise.all([
+      prisma.user.findUnique({ where: { id: game.whiteId } }),
+      prisma.user.findUnique({ where: { id: game.blackId } }),
+    ])
 
-  const eloResult = winnerId === game.whiteId ? 'white' : winnerId === null ? 'draw' : 'black'
+    if (whiteUser && blackUser) {
+      const eloResult = winnerId === game.whiteId ? 'white' : winnerId === null ? 'draw' : 'black'
 
-  const { newWhiteElo, newBlackElo, whiteChange, blackChange } = calculateElo(
-    whiteUser.eloRating, blackUser.eloRating, eloResult, whiteUser.gamesPlayed, blackUser.gamesPlayed
-  )
+      const { newWhiteElo, newBlackElo, whiteChange, blackChange } = calculateElo(
+        whiteUser.eloRating, blackUser.eloRating, eloResult, whiteUser.gamesPlayed, blackUser.gamesPlayed
+      )
 
-  const pgn = game.chess.pgn() || game.pgn.join(' ')
+      const pgn = game.chess.pgn() || game.pgn.join(' ')
 
-  // Persist to DB
-  await prisma.$transaction([
-    prisma.game.update({
-      where: { id: gameId },
-      data: {
-        result: result as any,
-        winnerId,
-        pgn,
-        fen: game.chess.fen(),
-        eloChangeWhite: whiteChange,
-        eloChangeBlack: blackChange,
-        endedAt: new Date(),
-      },
-    }),
-    prisma.user.update({
-      where: { id: game.whiteId },
-      data: {
-        eloRating: newWhiteElo,
-        gamesPlayed: { increment: 1 },
-        gamesWon: winnerId === game.whiteId ? { increment: 1 } : undefined,
-        gamesDraw: winnerId === null ? { increment: 1 } : undefined,
-      },
-    }),
-    prisma.user.update({
-      where: { id: game.blackId },
-      data: {
-        eloRating: newBlackElo,
-        gamesPlayed: { increment: 1 },
-        gamesWon: winnerId === game.blackId ? { increment: 1 } : undefined,
-        gamesDraw: winnerId === null ? { increment: 1 } : undefined,
-      },
-    }),
-    prisma.eloHistory.createMany({
-      data: [
-        { userId: game.whiteId, elo: newWhiteElo, change: whiteChange, gameId },
-        { userId: game.blackId, elo: newBlackElo, change: blackChange, gameId },
-      ],
-    }),
-  ])
+      await prisma.$transaction([
+        prisma.game.update({
+          where: { id: gameId },
+          data: {
+            result: result as any,
+            winnerId,
+            pgn,
+            fen: game.chess.fen(),
+            eloChangeWhite: whiteChange,
+            eloChangeBlack: blackChange,
+            endedAt: new Date(),
+          },
+        }),
+        prisma.user.update({
+          where: { id: game.whiteId },
+          data: {
+            eloRating: newWhiteElo,
+            gamesPlayed: { increment: 1 },
+            gamesWon: winnerId === game.whiteId ? { increment: 1 } : undefined,
+            gamesDraw: winnerId === null ? { increment: 1 } : undefined,
+          },
+        }),
+        prisma.user.update({
+          where: { id: game.blackId },
+          data: {
+            eloRating: newBlackElo,
+            gamesPlayed: { increment: 1 },
+            gamesWon: winnerId === game.blackId ? { increment: 1 } : undefined,
+            gamesDraw: winnerId === null ? { increment: 1 } : undefined,
+          },
+        }),
+        prisma.eloHistory.createMany({
+          data: [
+            { userId: game.whiteId, elo: newWhiteElo, change: whiteChange, gameId },
+            { userId: game.blackId, elo: newBlackElo, change: blackChange, gameId },
+          ],
+        }),
+      ])
 
-  io.to(gameId).emit('game:end', {
-    result,
-    winnerId,
-    eloChanges: {
-      [game.whiteId]: { before: whiteUser.eloRating, after: newWhiteElo, change: whiteChange },
-      [game.blackId]: { before: blackUser.eloRating, after: newBlackElo, change: blackChange },
-    },
-  })
+      eloChanges = {
+        [game.whiteId]: { before: whiteUser.eloRating, after: newWhiteElo, change: whiteChange },
+        [game.blackId]: { before: blackUser.eloRating, after: newBlackElo, change: blackChange },
+      }
+    }
+  } catch (err) {
+    console.error('endGame DB error (non-fatal):', err)
+  }
+
+  // Always notify clients — even if DB write failed
+  io.to(gameId).emit('game:end', { result, winnerId, eloChanges })
 }
