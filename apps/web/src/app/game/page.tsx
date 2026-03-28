@@ -126,6 +126,10 @@ export default function GamePage() {
   const [rematchReceived, setRematchReceived] = useState(false)
   const [showResignConfirm, setShowResignConfirm] = useState(false)
 
+  // Animation state
+  const [animPiece, setAnimPiece] = useState<{symbol:string, fromSq:string, toSq:string}|null>(null)
+  const [animReady, setAnimReady] = useState(false)
+
   // Refs for stale-closure safety
   const fenRef          = useRef(INITIAL_FEN)
   const myColorRef      = useRef<'w' | 'b'>('w')
@@ -135,6 +139,7 @@ export default function GamePage() {
   const peerRef         = useRef<RTCPeerConnection | null>(null)
   const remoteAudioRef  = useRef<HTMLAudioElement | null>(null)
   const statusTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const animTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const theme = THEMES[boardTheme]
 
@@ -231,6 +236,12 @@ export default function GamePage() {
       ch.load(moveFen)
       const justMoved: 'w' | 'b' = ch.turn() === 'w' ? 'b' : 'w'
       const isOpponent = justMoved !== myColorRef.current
+
+      // Animate opponent's move (piece is at mTo in the new FEN)
+      if (isOpponent && mFrom && mTo) {
+        const movedPiece = ch.get(mTo as any)
+        if (movedPiece) animateMove(mFrom, mTo, getPieceSymbol(movedPiece.type, movedPiece.color))
+      }
 
       if (isOpponent) {
         const cap = getCapturedPiece(fenRef.current, moveFen)
@@ -401,8 +412,45 @@ export default function GamePage() {
     return FILES[dCol] + (8 - dRow)
   }
 
+  // ── Animation helpers ─────────────────────────────────────────
+  function getPieceSymbol(type: string, color: string): string {
+    const map: Record<string, Record<string, string>> = {
+      w: { k:'♔', q:'♕', r:'♖', b:'♗', n:'♘', p:'♙' },
+      b: { k:'♚', q:'♛', r:'♜', b:'♝', n:'♞', p:'♟' },
+    }
+    return map[color]?.[type] || ''
+  }
+
+  // Convert chess square name → display grid {col, row} (0-based)
+  // Must use boardFlipped at call time — only called from render-phase code
+  function squareToColRow(sq: string): {col: number, row: number} {
+    const file = sq.charCodeAt(0) - 97  // a=0 … h=7
+    const rank = parseInt(sq[1]) - 1    // 1=0 … 8=7
+    return boardFlipped
+      ? { col: 7 - file, row: rank }
+      : { col: file,     row: 7 - rank }
+  }
+
+  function animateMove(fromSq: string, toSq: string, symbol: string) {
+    if (animTimeoutRef.current) clearTimeout(animTimeoutRef.current)
+    setAnimReady(false)
+    setAnimPiece({ symbol, fromSq, toSq })
+    // Double-rAF: ensure the element is painted at fromSq before transition starts
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => { setAnimReady(true) })
+    })
+    animTimeoutRef.current = setTimeout(() => {
+      setAnimPiece(null)
+      setAnimReady(false)
+    }, 180)
+  }
+
   // ── Make move (optimistic) ────────────────────────────────────
   function makeMove(from: string, to: string, promotion: string) {
+    // Trigger animation before board state changes
+    const pieceObj = chess?.get(from as any)
+    if (pieceObj) animateMove(from, to, getPieceSymbol(pieceObj.type, pieceObj.color))
+
     getSocket().emit('game:move', { gameId: gameInfo?.gameId, from, to, promotion })
     try {
       const { Chess } = require('chess.js')
@@ -834,6 +882,8 @@ export default function GamePage() {
                       const isKingCheck = kingSquare === sq && isInCheck
                       const isBlack     = piece ? piece === piece.toLowerCase() : false
                       const unicode     = piece ? PIECE_UNICODE[piece] ?? piece : null
+                      // Hide the piece at the destination square while it is being animated there
+                      const isAnimDest  = animPiece?.toSq === sq
                       return (
                         <div key={`${ri}-${ci}`} className="board-sq" onClick={() => handleSquareClick(ri, ci)} style={{ display:'flex', alignItems:'center', justifyContent:'center', background: isLight ? theme.light : theme.dark, cursor:'pointer', aspectRatio:'1', position:'relative' }}>
                           {/* z1: last move highlight */}
@@ -848,9 +898,9 @@ export default function GamePage() {
                           {isSelected && (
                             <div style={{ position:'absolute', inset:0, background:'rgba(201,168,76,0.5)', pointerEvents:'none', zIndex:3 }} />
                           )}
-                          {/* z4: chess piece */}
-                          {unicode && (
-                            <span style={{ fontSize:'clamp(1.1rem,2.8vw,1.75rem)', lineHeight:1, color: isBlack ? '#1a0a00' : '#fff', textShadow: isBlack ? '0 1px 2px rgba(255,255,255,0.4)' : '0 1px 3px rgba(0,0,0,0.8)', userSelect:'none', position:'relative', zIndex:4, transition:'all 0.15s ease-in-out' }}>{unicode}</span>
+                          {/* z4: chess piece — hidden while animation overlay is sliding it in */}
+                          {unicode && !isAnimDest && (
+                            <span style={{ fontSize:'clamp(1.1rem,2.8vw,1.75rem)', lineHeight:1, color: isBlack ? '#1a0a00' : '#fff', textShadow: isBlack ? '0 1px 2px rgba(255,255,255,0.4)' : '0 1px 3px rgba(0,0,0,0.8)', userSelect:'none', position:'relative', zIndex:4 }}>{unicode}</span>
                           )}
                           {/* z5: valid move dot (empty) */}
                           {isValid && !piece && (
@@ -864,6 +914,39 @@ export default function GamePage() {
                       )
                     })
                   )}
+                  {/* ── Sliding piece animation overlay ── */}
+                  {(() => {
+                    if (!animPiece) return null
+                    const from = squareToColRow(animPiece.fromSq)
+                    const to   = squareToColRow(animPiece.toSq)
+                    const dx   = (to.col - from.col) * 100
+                    const dy   = (to.row - from.row) * 100
+                    const blackSymbols = ['♚','♛','♜','♝','♞','♟']
+                    const isBlackPiece = blackSymbols.includes(animPiece.symbol)
+                    return (
+                      <div style={{
+                        position: 'absolute',
+                        left: `${from.col * 12.5}%`,
+                        top:  `${from.row * 12.5}%`,
+                        width: '12.5%',
+                        height: '12.5%',
+                        transform: animReady ? `translate(${dx}%, ${dy}%)` : 'translate(0,0)',
+                        transition: animReady ? 'transform 0.15s ease-out' : 'none',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 'clamp(1.1rem,2.8vw,1.75rem)',
+                        lineHeight: 1,
+                        pointerEvents: 'none',
+                        zIndex: 10,
+                        userSelect: 'none',
+                        color: isBlackPiece ? '#1a0a00' : '#fff',
+                        textShadow: isBlackPiece ? '0 1px 2px rgba(255,255,255,0.4)' : '0 1px 3px rgba(0,0,0,0.8)',
+                      }}>
+                        {animPiece.symbol}
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             </div>
