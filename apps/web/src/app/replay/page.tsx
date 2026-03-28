@@ -1,6 +1,6 @@
 'use client'
 // @ts-nocheck
-import { useState, useEffect, useRef } from 'react'
+import { Suspense, useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
@@ -77,7 +77,7 @@ function resultLabel(result, winnerId, white, black) {
   return result
 }
 
-export default function ReplayPage() {
+function ReplayContent() {
   const searchParams = useSearchParams()
   const gameId = searchParams.get('gameId')
 
@@ -296,5 +296,25 @@ export default function ReplayPage() {
         </div>
       </div>
     </>
+  )
+}
+
+export default function ReplayPage() {
+  return (
+    <Suspense fallback={
+      <div style={{
+        minHeight: '100vh',
+        background: '#0a1628',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: '#c9a84c',
+        fontSize: '1.2rem'
+      }}>
+        Loading replay...
+      </div>
+    }>
+      <ReplayContent />
+    </Suspense>
   )
 }
