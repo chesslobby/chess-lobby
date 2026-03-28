@@ -5,8 +5,33 @@
 // ─────────────────────────────────────────────────────────────
 
 import { Server, Socket } from 'socket.io'
-import { Chess, calculateElo } from '@royal-chess/chess-engine'
+import { Chess } from 'chess.js'
 import { prisma } from '../db/client'
+
+function calculateElo(
+  whiteElo: number,
+  blackElo: number,
+  result: 'white' | 'black' | 'draw',
+  whiteGamesPlayed: number,
+  blackGamesPlayed: number
+) {
+  const kFactor = (elo: number, games: number) => games < 30 ? 40 : elo >= 2400 ? 10 : 20
+  const expected = (a: number, b: number) => 1 / (1 + Math.pow(10, (b - a) / 400))
+  const kWhite = kFactor(whiteElo, whiteGamesPlayed)
+  const kBlack = kFactor(blackElo, blackGamesPlayed)
+  const expWhite = expected(whiteElo, blackElo)
+  const expBlack = expected(blackElo, whiteElo)
+  const actualWhite = result === 'white' ? 1 : result === 'draw' ? 0.5 : 0
+  const actualBlack = result === 'black' ? 1 : result === 'draw' ? 0.5 : 0
+  const whiteChange = Math.round(kWhite * (actualWhite - expWhite))
+  const blackChange = Math.round(kBlack * (actualBlack - expBlack))
+  return {
+    newWhiteElo: Math.max(100, whiteElo + whiteChange),
+    newBlackElo: Math.max(100, blackElo + blackChange),
+    whiteChange,
+    blackChange,
+  }
+}
 
 interface ActiveGame {
   chess: Chess
