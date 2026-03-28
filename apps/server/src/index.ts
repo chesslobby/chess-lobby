@@ -16,14 +16,22 @@ const app = Fastify({ logger: true })
 
 const io = new Server(app.server, {
   cors: {
-    origin: process.env.CLIENT_URL || 'http://localhost:3000',
+    origin: '*',
     methods: ['GET', 'POST'],
+    credentials: false,
   },
+  transports: ['websocket', 'polling'],
 })
 
 // ── Plugins ──
 app.register(fastifyCors, {
-  origin: process.env.CLIENT_URL || 'http://localhost:3000',
+  origin: (origin, cb) => {
+    // Allow all origins in production
+    cb(null, true)
+  },
+  credentials: true,
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization'],
 })
 app.register(fastifyJwt, {
   secret: process.env.JWT_SECRET || 'change-me-in-production',
