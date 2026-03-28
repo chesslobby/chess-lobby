@@ -5,7 +5,9 @@
 // ─────────────────────────────────────────────────────────────
 
 import { Server, Socket } from 'socket.io'
-import { Chess } from 'chess.js'
+// chess.js 0.12.0 uses CommonJS exports — no native ESM
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const Chess = require('chess.js')
 import { prisma } from '../db/client'
 
 function calculateElo(
@@ -34,7 +36,7 @@ function calculateElo(
 }
 
 interface ActiveGame {
-  chess: Chess
+  chess: any
   whiteId: string
   blackId: string
   whiteSocketId: string
@@ -127,7 +129,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
       game.pgn.push(move.san)
 
       // Check for game end
-      if (game.chess.isGameOver()) {
+      if (game.chess.game_over()) {
         await handleGameEnd(io, gameId, game)
       }
     } catch {
@@ -268,11 +270,11 @@ async function handleGameEnd(io: Server, gameId: string, game: ActiveGame) {
   let result: 'checkmate' | 'stalemate' | 'draw'
   let winnerId: string | null = null
 
-  if (game.chess.isCheckmate()) {
+  if (game.chess.in_checkmate()) {
     result = 'checkmate'
     winnerId = game.chess.turn() === 'w' ? game.blackId : game.whiteId
   } else {
-    result = game.chess.isStalemate() ? 'stalemate' : 'draw'
+    result = game.chess.in_stalemate() ? 'stalemate' : 'draw'
   }
 
   await endGame(io, gameId, game, result, winnerId)
