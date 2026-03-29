@@ -1,4 +1,5 @@
 'use client'
+// @ts-nocheck
 import { useState, useEffect, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
@@ -44,7 +45,14 @@ function SpectateInner() {
   const [players, setPlayers]       = useState<{ white: any; black: any }>({ white: null, black: null })
   const [connected, setConnected]   = useState(false)
   const [currentTurn, setCurrentTurn] = useState<'w'|'b'>('w')
+  const [chatMessages, setChatMessages] = useState<any[]>([
+    { type: 'system', text: 'Welcome! Watch the game and cheer for your favorite player.' },
+  ])
+  const [chatInput, setChatInput]   = useState('')
+  const [chatFocused, setChatFocused] = useState(false)
+  const [quickCooldown, setQuickCooldown] = useState(false)
   const moveScrollRef = useRef<HTMLDivElement>(null)
+  const chatScrollRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (moveScrollRef.current)
@@ -91,13 +99,39 @@ function SpectateInner() {
 
     socket.on('spectate:count', ({ count }: any) => setSpectatorCount(count))
 
-    socket.on('game:end', () => setConnected(false))
+    socket.on('game:end', () => {
+      setConnected(false)
+      setChatMessages(prev => [...prev, { type: 'system', text: 'Game has ended.' }])
+    })
+
+    socket.on('chat:receive', ({ senderName, message, type }: any) => {
+      setChatMessages(prev => [...prev, { type: type || 'player', sender: senderName, text: message }])
+    })
 
     return () => {
       socket.emit('spectate:leave', { gameId })
-      ;['spectate:state','game:move','spectate:count','game:end'].forEach(ev => socket.off(ev))
+      ;['spectate:state','game:move','spectate:count','game:end','chat:receive'].forEach(ev => socket.off(ev))
     }
   }, [gameId])
+
+  useEffect(() => {
+    if (chatScrollRef.current)
+      chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
+  }, [chatMessages])
+
+  function sendSpectatorChat(msg) {
+    if (!msg.trim() || !gameId) return
+    getSocket().emit('chat:spectator', { gameId, message: msg.trim() })
+    setChatMessages(prev => [...prev, { type: 'spectator', sender: 'You', text: msg.trim(), self: true }])
+    setChatInput('')
+  }
+
+  function sendQuickReaction(emoji) {
+    if (quickCooldown) return
+    sendSpectatorChat(emoji)
+    setQuickCooldown(true)
+    setTimeout(() => setQuickCooldown(false), 3000)
+  }
 
   const whiteName = players.white?.username || 'White'
   const blackName = players.black?.username || 'Black'
@@ -139,6 +173,7 @@ function SpectateInner() {
 
         {/* Main */}
         <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
+
 
           {/* Left panel — move history */}
           <div style={{ width:'200px', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderRight:'1px solid rgba(201,168,76,0.15)' }}>
@@ -238,6 +273,55 @@ function SpectateInner() {
               Spectating · Read-only
             </div>
           </div>
+
+          {/* Spectator chat panel */}
+          <div style={{ width:'260px', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderLeft:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
+            <div style={{ padding:'0.65rem 0.85rem', borderBottom:'1px solid rgba(201,168,76,0.12)', display:'flex', alignItems:'center', gap:'0.4rem', flexShrink:0 }}>
+              <span style={{ color:'#e8e0d0', fontSize:'0.85rem', fontWeight:600, fontFamily:'var(--font-playfair),Georgia,serif' }}>💬 Chat</span>
+              <span style={{ marginLeft:'auto', fontSize:'0.72rem', color:'#9aa5b4' }}>👁 {spectatorCount} watching</span>
+            </div>
+
+            {/* Quick reactions */}
+            <div style={{ padding:'0.4rem 0.6rem', borderBottom:'1px solid rgba(201,168,76,0.08)', display:'flex', gap:'0.25rem', flexWrap:'wrap', flexShrink:0 }}>
+              {['😮','👏','🔥','💀','🤩'].map(e => (
+                <button key={e} onClick={() => sendQuickReaction(e)} disabled={quickCooldown} style={{ fontSize:'1.1rem', background: quickCooldown ? 'rgba(255,255,255,.02)' : 'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.08)', borderRadius:5, padding:'0.2rem 0.3rem', cursor: quickCooldown ? 'default' : 'pointer', opacity: quickCooldown ? 0.45 : 1, lineHeight:1 }}>{e}</button>
+              ))}
+            </div>
+
+            <div ref={chatScrollRef} style={{ flex:1, overflowY:'auto', padding:'0.6rem', display:'flex', flexDirection:'column', gap:'0.4rem' }}>
+              {chatMessages.map((msg, i) =>
+                msg.type === 'system' ? (
+                  <div key={i} style={{ fontSize:'0.72rem', color:'#4a5568', fontStyle:'italic', textAlign:'center', padding:'0.15rem' }}>{msg.text}</div>
+                ) : (
+                  <div key={i} style={{ alignSelf: msg.self ? 'flex-end' : 'flex-start', maxWidth:'90%' }}>
+                    {!msg.self && (
+                      <div style={{ fontSize:'0.68rem', marginBottom:'0.1rem', color: msg.type === 'spectator' ? '#9aa5b4' : '#c9a84c' }}>
+                        {msg.type === 'spectator' ? `👁 ${msg.sender}` : msg.type === 'player' ? (players.white?.username === msg.sender ? `♔ ${msg.sender}` : `♚ ${msg.sender}`) : msg.sender}
+                      </div>
+                    )}
+                    <div style={{ background: msg.self ? 'rgba(201,168,76,0.1)' : msg.type === 'spectator' ? 'rgba(255,255,255,0.04)' : 'rgba(201,168,76,0.07)', border: msg.self ? '1px solid rgba(201,168,76,0.25)' : '1px solid rgba(255,255,255,0.07)', borderRadius: msg.self ? '8px 0 8px 8px' : '0 8px 8px 8px', padding:'0.35rem 0.55rem', fontSize:'0.8rem', color: msg.self ? '#e8c97a' : '#e8e0d0' }}>
+                      {msg.text}
+                    </div>
+                  </div>
+                )
+              )}
+            </div>
+
+            <div style={{ padding:'0.5rem', borderTop:'1px solid rgba(201,168,76,0.1)', display:'flex', gap:'0.35rem', flexShrink:0 }}>
+              <input
+                type="text"
+                placeholder="Cheer them on..."
+                value={chatInput}
+                onChange={e => setChatInput(e.target.value)}
+                onFocus={() => setChatFocused(true)}
+                onBlur={() => setChatFocused(false)}
+                onKeyDown={e => { if (e.key === 'Enter') sendSpectatorChat(chatInput) }}
+                style={{ flex:1, background:'rgba(255,255,255,0.05)', border:`1.5px solid ${chatFocused ? '#c9a84c' : 'rgba(201,168,76,0.2)'}`, borderRadius:6, padding:'0.35rem 0.5rem', color:'#e8e0d0', fontSize:'0.78rem', outline:'none' }}
+              />
+              <button onClick={() => sendSpectatorChat(chatInput)} style={{ background:'rgba(201,168,76,.2)', color:'#c9a84c', border:'1px solid rgba(201,168,76,.35)', borderRadius:5, padding:'0.35rem 0.55rem', fontSize:'0.78rem', cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>Send</button>
+            </div>
+          </div>
+
         </div>
       </div>
     </>

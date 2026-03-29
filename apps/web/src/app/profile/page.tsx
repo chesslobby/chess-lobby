@@ -524,9 +524,24 @@ export default function ProfilePage() {
                         </td>
                         <td style={{ padding: '.7rem 1rem', borderBottom: '1px solid rgba(255,255,255,.03)', verticalAlign: 'middle' }}>
                           {g.pgn && (
-                            <Link href={`/replay?gameId=${g.id}`} style={{ color: '#c9a84c', fontSize: '.78rem', textDecoration: 'none', border: '1px solid rgba(201,168,76,.35)', padding: '.2rem .55rem', borderRadius: 5, whiteSpace: 'nowrap' }}>
-                              ▶ Replay
-                            </Link>
+                            <div style={{ display: 'flex', gap: '.4rem', alignItems: 'center' }}>
+                              <Link href={`/replay?gameId=${g.id}`} style={{ color: '#c9a84c', fontSize: '.78rem', textDecoration: 'none', border: '1px solid rgba(201,168,76,.35)', padding: '.2rem .55rem', borderRadius: 5, whiteSpace: 'nowrap' }}>
+                                ▶ Replay
+                              </Link>
+                              <button
+                                onClick={() => {
+                                  const url = `https://chesslobby.in/replay?gameId=${g.id}`
+                                  try {
+                                    navigator.clipboard.writeText(url)
+                                    showToast('Replay link copied! 🔗', 'success')
+                                  } catch {}
+                                }}
+                                title="Copy replay link"
+                                style={{ background: 'transparent', border: '1px solid rgba(255,255,255,.1)', color: '#4a5568', borderRadius: 5, padding: '.2rem .45rem', fontSize: '.78rem', cursor: 'pointer', lineHeight: 1 }}
+                                onMouseEnter={e => { e.currentTarget.style.color = '#c9a84c'; e.currentTarget.style.borderColor = 'rgba(201,168,76,.35)' }}
+                                onMouseLeave={e => { e.currentTarget.style.color = '#4a5568'; e.currentTarget.style.borderColor = 'rgba(255,255,255,.1)' }}
+                              >🔗</button>
+                            </div>
                           )}
                         </td>
                       </tr>

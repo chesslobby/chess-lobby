@@ -88,8 +88,18 @@ function ReplayContent() {
   const [moves, setMoves] = useState([])
   const [idx, setIdx] = useState(0)
   const [autoPlay, setAutoPlay] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
   const autoRef = useRef(null)
   const moveListRef = useRef(null)
+
+  function handleShare() {
+    const url = typeof window !== 'undefined' ? window.location.href : `https://chesslobby.in/replay?gameId=${gameId}`
+    try {
+      navigator.clipboard.writeText(url)
+      setShareCopied(true)
+      setTimeout(() => setShareCopied(false), 2000)
+    } catch {}
+  }
 
   useEffect(() => {
     if (!gameId) { setError('No game ID provided'); setLoading(false); return }
@@ -183,6 +193,12 @@ function ReplayContent() {
               {g?.whitePlayer?.username} vs {g?.blackPlayer?.username}
               {g?.timeControl ? ` · ${tcLabel(g.timeControl)}` : ''}
             </div>
+            <button
+              onClick={handleShare}
+              style={{ background: shareCopied ? 'rgba(34,197,94,.12)' : 'rgba(201,168,76,.1)', color: shareCopied ? '#22c55e' : '#c9a84c', border: `1px solid ${shareCopied ? 'rgba(34,197,94,.35)' : 'rgba(201,168,76,.35)'}`, borderRadius: 7, padding: '.35rem .85rem', fontSize: '.82rem', cursor: 'pointer', transition: 'all .15s', fontFamily: 'var(--font-crimson),Georgia,serif' }}
+            >
+              {shareCopied ? '✓ Copied!' : '🔗 Share Game'}
+            </button>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 280px', gap: '1.25rem', alignItems: 'start' }}>

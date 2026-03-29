@@ -130,6 +130,15 @@ export default function GamePage() {
   const [animPiece, setAnimPiece] = useState<{symbol:string, fromSq:string, toSq:string}|null>(null)
   const [animReady, setAnimReady] = useState(false)
 
+  // Social features state
+  const [floatingEmojis, setFloatingEmojis] = useState<Array<{id:number, emoji:string, x:number}>>([])
+  const [quickCooldown, setQuickCooldown] = useState(false)
+  const [gameOverDividerAdded, setGameOverDividerAdded] = useState(false)
+  const [shareCopied, setShareCopied] = useState(false)
+  const [shareWhatsAppSent, setShareWhatsAppSent] = useState(false)
+  const [showOpponentProfile, setShowOpponentProfile] = useState(false)
+  const floatingIdRef = useRef(0)
+
   // Refs for stale-closure safety
   const fenRef          = useRef(INITIAL_FEN)
   const myColorRef      = useRef<'w' | 'b'>('w')
@@ -170,7 +179,7 @@ export default function GamePage() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if ((e.target as HTMLElement).tagName === 'INPUT') return
-      if (e.key === 'Escape') { setSelectedSquare(null); setValidMoves([]) }
+      if (e.key === 'Escape') { setSelectedSquare(null); setValidMoves([]); setShowOpponentProfile(false) }
       if (e.key === 'f' || e.key === 'F') setBoardFlipped(p => !p)
     }
     window.addEventListener('keydown', onKey)
@@ -304,6 +313,14 @@ export default function GamePage() {
 
     socket.on('chat:receive', ({ senderName, message }: any) => {
       setMessages(prev => [...prev, { sender: senderName, text: message, self: false }])
+      // Floating emoji if message is a single emoji
+      const FLOAT_EMOJIS = ['😮','😄','🤔','😤','👏','🏆','😅','🤩','😂','❤️','🔥','💀','🎯','✨']
+      if (FLOAT_EMOJIS.includes(message.trim())) {
+        const id = ++floatingIdRef.current
+        const x = Math.floor(Math.random() * 60) + 20
+        setFloatingEmojis(prev => [...prev, { id, emoji: message.trim(), x }])
+        setTimeout(() => setFloatingEmojis(prev => prev.filter(e => e.id !== id)), 1800)
+      }
     })
 
     socket.on('game:rematch-offered', () => {
@@ -316,6 +333,45 @@ export default function GamePage() {
        'game:draw-offered','game:opponent-disconnected','chat:receive','game:rematch-offered'].forEach(ev => socket.off(ev))
     }
   }, [mounted])
+
+  // ── Game-over chat divider ───────────────────────────────────
+  useEffect(() => {
+    if (gameOver && !gameOverDividerAdded) {
+      setGameOverDividerAdded(true)
+      setMessages(prev => [
+        ...prev,
+        { sender: 'System', text: '── Game Over ──', system: true, divider: true },
+        { sender: 'System', text: 'Chat continues after game — analyze together! 💬', system: true },
+      ])
+    }
+  }, [gameOver])
+
+  // ── Share game helpers ───────────────────────────────────────
+  function handleShareGame() {
+    const url = `https://chesslobby.in/replay?gameId=${gameInfo?.gameId}`
+    try { navigator.clipboard.writeText(url) } catch {}
+    setShareCopied(true)
+    setTimeout(() => setShareCopied(false), 2500)
+  }
+
+  function handleShareWhatsApp() {
+    const url = `https://chesslobby.in/replay?gameId=${gameInfo?.gameId}`
+    window.open(`https://wa.me/?text=${encodeURIComponent('Check out this chess game! ' + url)}`, '_blank')
+  }
+
+  function handleShareTwitter() {
+    const url = `https://chesslobby.in/replay?gameId=${gameInfo?.gameId}`
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('I just played chess on Chess Lobby!')}&url=${encodeURIComponent(url)}`, '_blank')
+  }
+
+  // ── Quick message sender ─────────────────────────────────────
+  function sendQuickMsg(text: string) {
+    if (quickCooldown || !gameInfo) return
+    getSocket().emit('chat:send', { gameId: gameInfo.gameId, message: text, type: 'quick' })
+    setMessages(prev => [...prev, { sender: myName, text, self: true }])
+    setQuickCooldown(true)
+    setTimeout(() => setQuickCooldown(false), 3000)
+  }
 
   // ── Voice ────────────────────────────────────────────────────
   async function startVoice() {
@@ -607,7 +663,11 @@ export default function GamePage() {
         @keyframes spin { to { transform: rotate(360deg); } }
         @keyframes waitPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
         @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
+        @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity:1; } 100% { transform: translateY(-200px) scale(1.5); opacity:0; } }
         .game-over-card { animation: fadeInScale 0.3s ease both; }
+        .quick-msg-btn { background:rgba(255,255,255,0.04); border:1px solid rgba(201,168,76,0.18); border-radius:8px; color:#9aa5b4; font-size:11px; padding:2px 8px; cursor:pointer; font-family:var(--font-crimson),Georgia,serif; transition:all .15s; white-space:nowrap; }
+        .quick-msg-btn:hover:not(:disabled) { background:rgba(201,168,76,0.15); color:#c9a84c; border-color:rgba(201,168,76,0.4); }
+        .quick-msg-btn:disabled { opacity:0.35; cursor:default; }
         .voice-ring { animation: pulseRing 1.5s ease-in-out infinite; }
         .wait-pulse { animation: waitPulse 1.4s ease-in-out infinite; }
         .spinner { width:36px;height:36px;border:3px solid rgba(201,168,76,0.2);border-top-color:#c9a84c;border-radius:50%;animation:spin 0.8s linear infinite; }
@@ -702,6 +762,23 @@ export default function GamePage() {
                 <button onClick={() => { localStorage.removeItem('current_game'); window.location.href = '/lobby' }} style={{ background:'transparent', color:'#c9a84c', border:'1.5px solid rgba(201,168,76,0.5)', borderRadius:'8px', padding:'0.7rem 1.25rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>New Game</button>
                 <button onClick={() => { localStorage.removeItem('current_game'); window.location.href = '/' }} style={{ background:'transparent', color:'#9aa5b4', border:'1.5px solid rgba(255,255,255,0.15)', borderRadius:'8px', padding:'0.7rem 1.25rem', fontSize:'0.9rem', cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>Home</button>
               </div>
+              {/* Share game */}
+              {gameInfo?.gameId && (
+                <div style={{ marginTop:'0.75rem', borderTop:'1px solid rgba(255,255,255,0.07)', paddingTop:'0.75rem' }}>
+                  <div style={{ fontSize:'0.75rem', color:'#4a5568', marginBottom:'0.5rem' }}>Share this game</div>
+                  <div style={{ display:'flex', gap:'0.5rem', justifyContent:'center', flexWrap:'wrap' }}>
+                    <button onClick={handleShareGame} style={{ background: shareCopied ? 'rgba(34,197,94,.12)' : 'rgba(201,168,76,0.1)', color: shareCopied ? '#22c55e' : '#c9a84c', border:`1px solid ${shareCopied ? 'rgba(34,197,94,.3)' : 'rgba(201,168,76,0.35)'}`, borderRadius:7, padding:'0.4rem 0.9rem', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
+                      {shareCopied ? '✓ Copied!' : '🔗 Copy Link'}
+                    </button>
+                    <button onClick={handleShareWhatsApp} style={{ background:'rgba(37,211,102,0.1)', color:'#25d366', border:'1px solid rgba(37,211,102,0.3)', borderRadius:7, padding:'0.4rem 0.9rem', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
+                      WhatsApp
+                    </button>
+                    <button onClick={handleShareTwitter} style={{ background:'rgba(29,161,242,0.1)', color:'#1da1f2', border:'1px solid rgba(29,161,242,0.3)', borderRadius:7, padding:'0.4rem 0.9rem', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
+                      𝕏 Twitter
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -788,16 +865,34 @@ export default function GamePage() {
           <div className={`left-panel${isMobile && showLeftPanel ? ' mobile-show' : ''}`} style={{ width:'clamp(180px,15vw,220px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderRight:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
 
             {/* Opponent */}
-            <div style={{ padding:'0.75rem', borderBottom:'1px solid rgba(201,168,76,0.1)', background: currentTurn !== myColor ? 'rgba(201,168,76,0.04)' : 'transparent', flexShrink:0 }}>
+            <div style={{ padding:'0.75rem', borderBottom:'1px solid rgba(201,168,76,0.1)', background: currentTurn !== myColor ? 'rgba(201,168,76,0.04)' : 'transparent', flexShrink:0, position:'relative' }}>
               <div style={{ display:'flex', alignItems:'center', gap:'0.5rem' }}>
-                <div suppressHydrationWarning style={{ width:'30px', height:'30px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#e8e0d0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', flexShrink:0 }}>
+                <div suppressHydrationWarning onClick={() => setShowOpponentProfile(p => !p)} style={{ width:'30px', height:'30px', borderRadius:'50%', background:'rgba(255,255,255,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#e8e0d0', display:'flex', alignItems:'center', justifyContent:'center', fontSize:'0.78rem', flexShrink:0, cursor:'pointer' }}>
                   {opponentName[0]?.toUpperCase() || 'O'}
                 </div>
                 <div style={{ minWidth:0 }}>
-                  <div style={{ fontSize:'0.83rem', color:'#e8e0d0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{opponentName}</div>
+                  <div onClick={() => setShowOpponentProfile(p => !p)} style={{ fontSize:'0.83rem', color:'#e8e0d0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap', cursor:'pointer' }}>{opponentName}</div>
                   <div style={{ fontSize:'0.7rem', color:'#4a5568' }}>{opponentElo} · {myColor === 'w' ? '⚫' : '⚪'}</div>
                 </div>
               </div>
+              {/* Opponent profile popup */}
+              {showOpponentProfile && (
+                <div style={{ position:'absolute', top:'100%', left:'0.5rem', zIndex:300, background:'#0d1f3c', border:'1px solid rgba(201,168,76,0.4)', borderRadius:10, padding:'0.85rem 1rem', width:'200px', boxShadow:'0 8px 32px rgba(0,0,0,0.6)' }} onClick={e => e.stopPropagation()}>
+                  <button onClick={() => setShowOpponentProfile(false)} style={{ position:'absolute', top:6, right:8, background:'none', border:'none', color:'#4a5568', cursor:'pointer', fontSize:'0.85rem' }}>✕</button>
+                  <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'0.5rem' }}>
+                    <div style={{ width:32, height:32, borderRadius:'50%', background:'rgba(201,168,76,0.2)', border:'1px solid rgba(201,168,76,0.4)', color:'#c9a84c', fontSize:'0.85rem', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                      {opponentName[0]?.toUpperCase() || 'O'}
+                    </div>
+                    <div>
+                      <div style={{ color:'#e8e0d0', fontSize:'0.85rem', fontWeight:600 }}>{opponentName}</div>
+                      <div style={{ color:'#4a5568', fontSize:'0.7rem' }}>{opponentElo} Elo</div>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', gap:'0.4rem', marginTop:'0.5rem' }}>
+                    <a href={`/profile/${opponentName}`} target="_blank" rel="noreferrer" style={{ flex:1, background:'rgba(201,168,76,.1)', color:'#c9a84c', border:'1px solid rgba(201,168,76,.3)', borderRadius:6, padding:'0.3rem 0.5rem', fontSize:'0.75rem', textDecoration:'none', textAlign:'center' }}>View Profile</a>
+                  </div>
+                </div>
+              )}
               <div style={{ fontSize:'1.45rem', fontFamily:'monospace', color: oppClock <= 30000 ? '#ef4444' : '#e8c97a', marginTop:'0.35rem', letterSpacing:'0.05em' }}>{formatClock(oppClock)}</div>
               {oppCaptures.length > 0 && (
                 <div style={{ display:'flex', flexWrap:'wrap', gap:'1px', marginTop:'0.2rem', alignItems:'center' }}>
@@ -914,6 +1009,12 @@ export default function GamePage() {
                       )
                     })
                   )}
+                  {/* ── Floating emoji reactions ── */}
+                  {floatingEmojis.map(e => (
+                    <div key={e.id} style={{ position:'absolute', left:`${e.x}%`, bottom:'10%', fontSize:'2.5rem', animation:'floatUp 1.5s ease-out forwards', pointerEvents:'none', zIndex:20 }}>
+                      {e.emoji}
+                    </div>
+                  ))}
                   {/* ── Sliding piece animation overlay ── */}
                   {(() => {
                     if (!animPiece) return null
@@ -970,9 +1071,9 @@ export default function GamePage() {
             {activeTab === 'chat' && (
               <>
                 <div ref={chatScrollRef} className="chat-scroll" style={{ flex:1, overflowY:'auto', padding:'0.7rem', display:'flex', flexDirection:'column', gap:'0.4rem', minHeight:0 }}>
-                  {messages.map((msg, i) =>
+                  {messages.map((msg: any, i) =>
                     msg.system ? (
-                      <div key={i} style={{ fontSize:'0.76rem', color:'#4a5568', fontStyle:'italic', textAlign:'center', padding:'0.2rem' }}>{msg.text}</div>
+                      <div key={i} style={{ fontSize:'0.76rem', color: msg.divider ? 'rgba(201,168,76,0.4)' : '#4a5568', fontStyle:'italic', textAlign:'center', padding:'0.2rem' }}>{msg.text}</div>
                     ) : (
                       <div key={i} style={{ alignSelf: msg.self ? 'flex-end' : 'flex-start', maxWidth:'82%' }}>
                         {!msg.self && <div style={{ fontSize:'0.7rem', color:'#c9a84c', marginBottom:'0.12rem' }}>{msg.sender}</div>}
@@ -983,11 +1084,53 @@ export default function GamePage() {
                     )
                   )}
                 </div>
-                <div style={{ display:'flex', gap:'0.25rem', padding:'0.35rem 0.6rem', flexWrap:'wrap', borderTop:'1px solid rgba(201,168,76,0.08)' }}>
-                  {['👏','😮','😄','🤔','😤','🏆'].map(e => (
-                    <button key={e} onClick={() => setChatInput(p => p + e)} style={{ fontSize:'1rem', cursor:'pointer', padding:'0.2rem 0.3rem', borderRadius:'4px', background:'rgba(255,255,255,0.04)', border:'none' }}>{e}</button>
-                  ))}
+
+                {/* Quick messages */}
+                <div style={{ padding:'0.3rem 0.55rem', borderTop:'1px solid rgba(201,168,76,0.08)', display:'flex', flexDirection:'column', gap:'0.25rem' }}>
+                  {!gameOver ? (
+                    <>
+                      <div style={{ display:'flex', gap:'0.25rem', flexWrap:'wrap' }}>
+                        {[['gg','Good game! 🤝'],['glhf','Good luck, have fun! 🍀'],['wp','Well played! 👏'],['ty','Thank you! 😊']].map(([label, msg]) => (
+                          <button key={label} className="quick-msg-btn" onClick={() => sendQuickMsg(msg)} disabled={quickCooldown}>{label}</button>
+                        ))}
+                      </div>
+                      <div style={{ display:'flex', gap:'0.25rem', flexWrap:'wrap' }}>
+                        {['😮','😄','🤔','😤'].map(e => (
+                          <button key={e} className="quick-msg-btn" onClick={() => sendQuickMsg(e)} disabled={quickCooldown} style={{ fontSize:'0.95rem', padding:'2px 6px' }}>{e}</button>
+                        ))}
+                        {[['nice','Nice move! ✨'],['oops','Oops! 😅'],['wow','Wow! 🤩'],['lol','haha 😂']].map(([label, msg]) => (
+                          <button key={label} className="quick-msg-btn" onClick={() => sendQuickMsg(msg)} disabled={quickCooldown}>{label}</button>
+                        ))}
+                      </div>
+                    </>
+                  ) : (
+                    <div style={{ display:'flex', gap:'0.25rem', flexWrap:'wrap' }}>
+                      {[
+                        ['gg','GG! Great game! 🏆'],
+                        ['rematch?','Rematch? Let\'s go again! 🔄'],
+                        ['wp','Well played! 👏'],
+                        ['analyze?','Want to analyze the game together?'],
+                      ].map(([label, msg]) => (
+                        <button key={label} className="quick-msg-btn" onClick={() => sendQuickMsg(msg)} disabled={quickCooldown}>{label}</button>
+                      ))}
+                    </div>
+                  )}
+                  {!gameOver && (
+                    <div style={{ display:'flex', gap:'0.25rem', flexWrap:'wrap' }}>
+                      {[['That was a great game! 👏','That was a great game! 👏'],['Good moves! 🎯','Good moves! 🎯'],['Rematch? 🔄','Rematch? 🔄'],['Well played! 🤝','Well played! 🤝']].filter(() => gameOver).map(([label, msg]) => (
+                        <button key={label} className="quick-msg-btn" onClick={() => sendQuickMsg(msg)} disabled={quickCooldown}>{label}</button>
+                      ))}
+                    </div>
+                  )}
+                  {gameOver && (
+                    <div style={{ display:'flex', gap:'0.25rem', flexWrap:'wrap', marginTop:'0.1rem' }}>
+                      {[['That was a great game! 👏','That was a great game! 👏'],['Good moves! 🎯','Good moves! 🎯'],['Well played! 🤝','Well played! 🤝']].map(([label, msg]) => (
+                        <button key={label} className="quick-msg-btn" onClick={() => sendQuickMsg(msg)} disabled={quickCooldown} style={{ fontSize:'10px' }}>{label}</button>
+                      ))}
+                    </div>
+                  )}
                 </div>
+
                 <div style={{ display:'flex', gap:'0.4rem', padding:'0.5rem 0.65rem', borderTop:'1px solid rgba(201,168,76,0.1)', flexShrink:0 }}>
                   <input type="text" placeholder="Message..." value={chatInput} onChange={e => setChatInput(e.target.value)} onFocus={() => setChatFocused(true)} onBlur={() => setChatFocused(false)} onKeyDown={e => { if (e.key === 'Enter') sendMessage() }}
                     style={{ flex:1, background:'rgba(255,255,255,0.05)', border:`1.5px solid ${chatFocused ? '#c9a84c' : 'rgba(201,168,76,0.2)'}`, borderRadius:'7px', padding:'0.4rem 0.6rem', color:'#e8e0d0', fontSize:'0.83rem', outline:'none', boxSizing:'border-box' }} />

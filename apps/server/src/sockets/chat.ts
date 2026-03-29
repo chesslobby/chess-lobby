@@ -1,6 +1,6 @@
 // ─────────────────────────────────────────────────────────────
 //  Royal Chess — Chat Socket Handler
-//  Events: chat:send, lobby:chat:send
+//  Events: chat:send, lobby:chat:send, lobby:online-count
 // ─────────────────────────────────────────────────────────────
 
 import { Server, Socket } from 'socket.io'
@@ -18,30 +18,53 @@ export function registerChatHandlers(io: Server, socket: Socket) {
   socket.join(LOBBY_ROOM)
 
   // ── In-game chat ───────────────────────────────────────────
+  // type: 'text' | 'emoji' | 'quick' | 'system' | 'spectator' | 'player'
   socket.on('chat:send', async ({ gameId, message, type }: {
-    gameId: string; message: string; type: 'text' | 'emoji'
+    gameId: string; message: string; type: string
   }) => {
     if (!isAllowed(userId)) return
     if (!message?.trim() || message.length > MAX_MSG_LENGTH) return
 
     const sanitized = sanitize(message)
+    const msgType = type || 'text'
 
     const saved = await prisma.chatMessage.create({
       data: {
         gameId,
         senderId: userId,
         message: sanitized,
-        type,
+        type: msgType,
       },
-    })
+    }).catch(() => null)
 
-    io.to(gameId).emit('chat:receive', {
-      id: saved.id,
+    const payload = {
+      id: saved?.id,
       senderId: userId,
       senderName: username,
       message: sanitized,
-      type,
-      timestamp: saved.sentAt.getTime(),
+      type: msgType,
+      timestamp: Date.now(),
+    }
+
+    // Relay to entire game room (players + spectators)
+    io.to(gameId).emit('chat:receive', payload)
+  })
+
+  // ── Spectator chat (same room, tagged type) ────────────────
+  socket.on('chat:spectator', async ({ gameId, message }: {
+    gameId: string; message: string
+  }) => {
+    if (!isAllowed(userId)) return
+    if (!message?.trim() || message.length > MAX_MSG_LENGTH) return
+
+    const sanitized = sanitize(message)
+
+    io.to(gameId).emit('chat:receive', {
+      senderId: userId,
+      senderName: username,
+      message: sanitized,
+      type: 'spectator',
+      timestamp: Date.now(),
     })
   })
 
@@ -52,7 +75,6 @@ export function registerChatHandlers(io: Server, socket: Socket) {
 
     const sanitized = sanitize(message)
 
-    // Save lobby messages without a gameId
     await prisma.chatMessage.create({
       data: {
         senderId: userId,
@@ -60,7 +82,7 @@ export function registerChatHandlers(io: Server, socket: Socket) {
         type: 'text',
         isLobby: true,
       },
-    })
+    }).catch(() => null)
 
     io.to(LOBBY_ROOM).emit('lobby:chat:receive', {
       senderId: userId,
@@ -68,6 +90,12 @@ export function registerChatHandlers(io: Server, socket: Socket) {
       message: sanitized,
       timestamp: Date.now(),
     })
+  })
+
+  // ── Online count ───────────────────────────────────────────
+  socket.on('lobby:online-count', () => {
+    const count = io.engine.clientsCount
+    socket.emit('lobby:online-count', count)
   })
 }
 

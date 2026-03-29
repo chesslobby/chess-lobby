@@ -49,7 +49,16 @@ export default function LobbyPage() {
   const [chatInput, setChatInput]   = useState('')
   const [chatFocused, setChatFocused] = useState(false)
   const [messages, setMessages]     = useState<ChatMsg[]>(INITIAL_MSGS)
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const chatScrollRef = useRef<HTMLDivElement>(null)
+
+  // Friends online (mock)
+  const [friendsOnline] = useState([
+    { username: 'Magnus_C',   elo: 2200, status: 'In a game',    online: true  },
+    { username: 'BlitzQueen', elo: 1830, status: 'In lobby',     online: true  },
+    { username: 'TactixKing', elo: 1760, status: 'Playing puzzle', online: true },
+    { username: 'RookEnder',  elo: 1620, status: 'Last seen 2h ago', online: false },
+  ])
 
   // ── Mount + auth ─────────────────────────────────────────────
   useEffect(() => {
@@ -119,7 +128,9 @@ export default function LobbyPage() {
     })
 
     socket.on('lobby:chat:receive', ({ senderName, message }: any) => {
-      setMessages(prev => [...prev, { user: senderName, text: message, time: 'just now', isSystem: false }])
+      const now = new Date()
+      const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
+      setMessages(prev => [...prev, { user: senderName, text: message, time: timeStr, isSystem: false }])
     })
 
     return () => {
@@ -176,8 +187,11 @@ export default function LobbyPage() {
     if (!chatInput.trim()) return
     const socket = getSocket()
     socket.emit('lobby:chat:send', { message: chatInput.trim() })
-    setMessages(prev => [...prev, { user: user?.username || 'Guest', text: chatInput.trim(), time: 'just now', isSystem: false }])
+    const now = new Date()
+    const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
+    setMessages(prev => [...prev, { user: user?.username || 'Guest', text: chatInput.trim(), time: timeStr, isSystem: false }])
     setChatInput('')
+    setShowEmojiPicker(false)
   }
 
   return (
@@ -379,33 +393,105 @@ export default function LobbyPage() {
             </div>
           </div>
 
-          {/* RIGHT COLUMN — Lobby Chat */}
-          <div className="lobby-right" style={{ flex:1, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden', minWidth:0, minHeight:'500px' }}>
-            <div style={{ padding:'0.9rem 1.1rem', borderBottom:'1px solid rgba(201,168,76,0.15)', display:'flex', alignItems:'center', gap:'0.5rem', flexShrink:0 }}>
-              <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', color:'#e8e0d0', fontSize:'1rem', fontWeight:700 }}>Lobby Chat</span>
-              <span style={{ color:'#22c55e', fontSize:'0.7rem' }}>●</span>
-              <span style={{ fontSize:'0.75rem', color:'#22c55e' }}>Live</span>
-            </div>
+          {/* RIGHT COLUMN */}
+          <div className="lobby-right" style={{ flex:1, display:'flex', flexDirection:'column', gap:'1rem', minWidth:0 }}>
 
-            <div ref={chatScrollRef} className="chat-scroll" style={{ flex:1, overflowY:'auto', padding:'1rem', display:'flex', flexDirection:'column', gap:'0.75rem' }}>
-              {messages.map((msg, i) => (
-                <div key={i}>
-                  {msg.isSystem ? (
-                    <div style={{ fontSize:'0.8rem', color:'#4a5568', fontStyle:'italic', textAlign:'center', padding:'0.25rem' }}>{msg.text}</div>
-                  ) : (
-                    <div style={{ display:'flex', flexDirection:'column' }}>
-                      <span style={{ color:'#c9a84c', fontSize:'0.82rem', fontWeight:600 }}>{msg.user}</span>
-                      <span style={{ color:'#e8e0d0', fontSize:'0.9rem', marginTop:'0.15rem' }}>{msg.text}</span>
-                      <span style={{ color:'#4a5568', fontSize:'0.72rem', marginTop:'0.15rem' }}>{msg.time}</span>
+            {/* Friends Online */}
+            <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden' }}>
+              <div style={{ padding:'0.75rem 1.1rem', borderBottom:'1px solid rgba(201,168,76,0.12)', display:'flex', alignItems:'center', gap:'0.5rem' }}>
+                <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', color:'#e8e0d0', fontSize:'0.95rem', fontWeight:700 }}>Friends Online</span>
+                <span style={{ fontSize:'0.72rem', color:'#22c55e', background:'rgba(34,197,94,.12)', border:'1px solid rgba(34,197,94,.25)', padding:'0.1rem 0.45rem', borderRadius:999 }}>
+                  {friendsOnline.filter(f => f.online).length} online
+                </span>
+              </div>
+              <div style={{ padding:'0.5rem 0' }}>
+                {friendsOnline.map(f => (
+                  <div key={f.username} style={{ display:'flex', alignItems:'center', gap:'0.6rem', padding:'0.5rem 1rem' }}>
+                    <div style={{ position:'relative', flexShrink:0 }}>
+                      <div style={{ width:28, height:28, borderRadius:'50%', background:'rgba(201,168,76,.15)', border:'1px solid rgba(201,168,76,.3)', color:'#c9a84c', fontSize:'0.78rem', display:'flex', alignItems:'center', justifyContent:'center' }}>
+                        {f.username[0].toUpperCase()}
+                      </div>
+                      <div style={{ position:'absolute', bottom:0, right:0, width:8, height:8, borderRadius:'50%', background: f.online ? '#22c55e' : '#4a5568', border:'1.5px solid #0a1628' }} />
                     </div>
-                  )}
-                </div>
-              ))}
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <Link href={`/profile/${f.username}`} style={{ color:'#e8e0d0', fontSize:'0.83rem', textDecoration:'none', display:'block', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {f.username} <span style={{ color:'#4a5568', fontSize:'0.73rem' }}>({f.elo})</span>
+                      </Link>
+                      <div style={{ fontSize:'0.72rem', color: f.online ? '#9aa5b4' : '#374151' }}>{f.status}</div>
+                    </div>
+                    {f.online && (
+                      <button
+                        onClick={() => { getSocket().emit('room:create', { timeControl: selectedTime || 600 }); setStatusMsg(`Challenge sent to ${f.username}!`) }}
+                        style={{ background:'transparent', border:'1px solid rgba(201,168,76,.35)', color:'#c9a84c', borderRadius:5, padding:'0.2rem 0.55rem', fontSize:'0.72rem', cursor:'pointer', flexShrink:0, fontFamily:'var(--font-crimson),Georgia,serif' }}
+                      >Challenge</button>
+                    )}
+                  </div>
+                ))}
+                {friendsOnline.length === 0 && (
+                  <div style={{ padding:'1rem', textAlign:'center', color:'#4a5568', fontSize:'0.82rem' }}>
+                    Add friends to see them here!
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div style={{ padding:'0.75rem', borderTop:'1px solid rgba(201,168,76,0.15)', display:'flex', gap:'0.5rem', flexShrink:0 }}>
-              <input className={`input-field${chatFocused ? ' focused' : ''}`} type="text" placeholder="Say something..." value={chatInput} onChange={e => setChatInput(e.target.value)} onFocus={() => setChatFocused(true)} onBlur={() => setChatFocused(false)} onKeyDown={e => { if (e.key === 'Enter') handleSendChat() }} style={{ flex:1, padding:'0.6rem 0.8rem', fontSize:'0.9rem' }} />
-              <button onClick={handleSendChat} style={{ background:'#c9a84c', color:'#0a1628', border:'none', padding:'0.6rem 1rem', borderRadius:'6px', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'0.9rem' }}>Send</button>
+            {/* Lobby Chat */}
+            <div style={{ flex:1, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden', minHeight:'360px', position:'relative' }}>
+              <div style={{ padding:'0.9rem 1.1rem', borderBottom:'1px solid rgba(201,168,76,0.15)', display:'flex', alignItems:'center', gap:'0.5rem', flexShrink:0 }}>
+                <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', color:'#e8e0d0', fontSize:'1rem', fontWeight:700 }}>Lobby Chat</span>
+                <span style={{ color:'#22c55e', fontSize:'0.7rem' }}>●</span>
+                <span style={{ fontSize:'0.75rem', color:'#22c55e' }}>Live</span>
+                {onlineCount !== null && (
+                  <span style={{ marginLeft:'auto', fontSize:'0.75rem', color:'#9aa5b4' }}>
+                    👥 {onlineCount} online
+                  </span>
+                )}
+              </div>
+
+              {/* Date separator */}
+              <div style={{ padding:'0.4rem 1rem 0', flexShrink:0 }}>
+                <div style={{ textAlign:'center', fontSize:'0.7rem', color:'#374151', position:'relative' }}>
+                  <span style={{ background:'rgba(10,22,40,1)', padding:'0 0.5rem', position:'relative', zIndex:1 }}>── Today ──</span>
+                </div>
+              </div>
+
+              <div ref={chatScrollRef} className="chat-scroll" style={{ flex:1, overflowY:'auto', padding:'0.6rem 1rem', display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+                {messages.map((msg, i) => (
+                  <div key={i}>
+                    {msg.isSystem ? (
+                      <div style={{ fontSize:'0.78rem', color:'#4a5568', fontStyle:'italic', textAlign:'center', padding:'0.15rem' }}>{msg.text}</div>
+                    ) : (
+                      <div style={{ display:'flex', gap:'0.5rem', alignItems:'flex-start' }}>
+                        <div style={{ width:22, height:22, borderRadius:'50%', background:'rgba(201,168,76,.12)', border:'1px solid rgba(201,168,76,.2)', color:'#c9a84c', fontSize:'0.65rem', display:'flex', alignItems:'center', justifyContent:'center', flexShrink:0, marginTop:1 }}>
+                          {msg.user[0]?.toUpperCase()}
+                        </div>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ display:'flex', alignItems:'baseline', gap:'0.35rem', flexWrap:'wrap' }}>
+                            <Link href={`/profile/${msg.user}`} style={{ color:'#c9a84c', fontSize:'0.82rem', fontWeight:600, textDecoration:'none' }}>{msg.user}</Link>
+                            <span style={{ color:'#374151', fontSize:'0.68rem' }}>{msg.time}</span>
+                          </div>
+                          <div style={{ color:'#e8e0d0', fontSize:'0.88rem', marginTop:'0.1rem', wordBreak:'break-word' }}>{msg.text}</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+
+              {/* Emoji picker popup */}
+              {showEmojiPicker && (
+                <div style={{ position:'absolute', bottom:'56px', left:'0.75rem', right:'0.75rem', background:'#0d1f3c', border:'1px solid rgba(201,168,76,0.3)', borderRadius:10, padding:'0.6rem', zIndex:50, display:'flex', flexWrap:'wrap', gap:'0.25rem' }}>
+                  {['😀','😂','🤔','😎','😤','🤩','👏','🔥','💀','🏆','❤️','👍','😮','🎯','⚡','🎮','♟️','🤝','😅','🌟'].map(e => (
+                    <button key={e} onClick={() => { setChatInput(p => p + e); setShowEmojiPicker(false) }} style={{ background:'rgba(255,255,255,.05)', border:'1px solid rgba(255,255,255,.08)', borderRadius:5, padding:'0.25rem 0.35rem', fontSize:'1.15rem', cursor:'pointer', lineHeight:1 }}>{e}</button>
+                  ))}
+                </div>
+              )}
+
+              <div style={{ padding:'0.6rem 0.75rem', borderTop:'1px solid rgba(201,168,76,0.15)', display:'flex', gap:'0.4rem', flexShrink:0 }}>
+                <button onClick={() => setShowEmojiPicker(p => !p)} style={{ background: showEmojiPicker ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.04)', border:'1px solid rgba(201,168,76,.2)', color:'#c9a84c', borderRadius:6, padding:'0 0.55rem', fontSize:'1rem', cursor:'pointer', flexShrink:0, lineHeight:1 }}>😀</button>
+                <input className={`input-field${chatFocused ? ' focused' : ''}`} type="text" placeholder="Say something..." value={chatInput} onChange={e => setChatInput(e.target.value)} onFocus={() => setChatFocused(true)} onBlur={() => { setChatFocused(false); setTimeout(() => setShowEmojiPicker(false), 200) }} onKeyDown={e => { if (e.key === 'Enter') handleSendChat() }} style={{ flex:1, padding:'0.5rem 0.75rem', fontSize:'0.88rem' }} />
+                <button onClick={handleSendChat} style={{ background:'#c9a84c', color:'#0a1628', border:'none', padding:'0.5rem 0.9rem', borderRadius:'6px', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'0.88rem', flexShrink:0 }}>Send</button>
+              </div>
             </div>
           </div>
         </div>
