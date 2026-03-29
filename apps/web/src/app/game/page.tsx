@@ -530,39 +530,45 @@ export default function GamePage() {
         showToast('Opponent left voice chat', 'info')
       })
 
-      // Join voice — emit on game socket (player is already in game room)
+      // Join voice — retry up to 3 times with 8s gaps until we get a response
+      let voiceJoinAttempts = 0
+      const MAX_VOICE_ATTEMPTS = 3
+      let voiceRetryTimer: ReturnType<typeof setTimeout> | null = null
+
       function emitVoiceJoin() {
-        console.log('[Voice] emitting voice:join for', info.gameId)
+        voiceJoinAttempts++
+        console.log(`[Voice] voice:join attempt ${voiceJoinAttempts}/${MAX_VOICE_ATTEMPTS} for`, info.gameId)
         socket.emit('voice:join', { gameId: info.gameId })
-      }
 
-      if (!socket.connected) {
-        console.log('[Voice] socket not connected, waiting for reconnect...')
-        socket.once('connect', () => {
-          console.log('[Voice] socket reconnected, emitting voice:join')
-          emitVoiceJoin()
-        })
-      } else {
-        emitVoiceJoin()
-      }
-
-      // Retry voice:join after 3s if no initiate/offer arrived yet
-      const voiceJoinRetry = setTimeout(() => {
-        if (peerRef.current && peerRef.current.connectionState !== 'connected') {
-          console.log('[Voice] no response to voice:join, retrying...')
-          emitVoiceJoin()
+        if (voiceJoinAttempts < MAX_VOICE_ATTEMPTS) {
+          voiceRetryTimer = setTimeout(() => {
+            if (peerRef.current?.connectionState !== 'connected') {
+              console.log('[Voice] no response, retrying...')
+              emitVoiceJoin()
+            }
+          }, 8000)
         }
-      }, 3000)
-      socket.once('voice:initiate', () => clearTimeout(voiceJoinRetry))
-      socket.once('voice:offer',    () => clearTimeout(voiceJoinRetry))
+      }
 
-      // Re-emit voice:join if socket reconnects while we're still connecting
+      // Clear retry timer when signaling arrives
+      function clearVoiceRetry() { if (voiceRetryTimer) { clearTimeout(voiceRetryTimer); voiceRetryTimer = null } }
+      socket.once('voice:initiate', clearVoiceRetry)
+      socket.once('voice:offer',    clearVoiceRetry)
+
+      // Re-emit if socket reconnects while still not connected
       socket.on('connect', () => {
-        if (peerRef.current && peerRef.current.connectionState !== 'connected') {
+        if (peerRef.current?.connectionState !== 'connected') {
           console.log('[Voice] socket reconnected mid-voice, re-emitting voice:join')
           setTimeout(() => emitVoiceJoin(), 500)
         }
       })
+
+      if (!socket.connected) {
+        console.log('[Voice] socket not connected, waiting for reconnect...')
+        socket.once('connect', () => emitVoiceJoin())
+      } else {
+        emitVoiceJoin()
+      }
 
     } catch (err: any) {
       console.error('[Voice] unexpected error:', err)

@@ -1,26 +1,31 @@
 // ─────────────────────────────────────────────────────────────
 //  Royal Chess — WebRTC Voice Signaling Handler
-//  Uses the existing game room (players are already in it via game:ready).
-//  No separate voice room join needed — avoids extra socket.join() overhead.
+//  Tracks voice-readiness per game independently of socket room size,
+//  so voice:initiate fires even if game:ready hasn't propagated yet.
 // ─────────────────────────────────────────────────────────────
 
 import { Server, Socket } from 'socket.io'
+
+// gameId → Set of userIds that have sent voice:join
+const voiceReady = new Map<string, Set<string>>()
 
 export function registerVoiceHandlers(io: Server, socket: Socket) {
   const { userId } = socket.data
 
   // ── Join voice ─────────────────────────────────────────────
-  // Player is already in the game room from game:ready.
-  // Check room size — if both players are present, tell the joiner to initiate.
   socket.on('voice:join', ({ gameId }: { gameId: string }) => {
-    const room = io.sockets.adapter.rooms.get(gameId)
-    const roomSize = room ? room.size : 0
+    if (!voiceReady.has(gameId)) voiceReady.set(gameId, new Set())
 
-    console.log(`[Voice] join from ${socket.data.username ?? userId}, room ${gameId} size: ${roomSize}`)
+    const ready = voiceReady.get(gameId)!
+    ready.add(userId)
 
-    if (roomSize >= 2) {
+    console.log(`[Voice] ${socket.data.username ?? userId} joined voice for ${gameId}. Ready: ${ready.size}/2`)
+
+    if (ready.size >= 2) {
+      // Both players ready — tell the second joiner (latest socket) to initiate
+      voiceReady.delete(gameId)
+      console.log(`[Voice] both ready, telling ${socket.data.username ?? userId} to initiate`)
       socket.emit('voice:initiate', { toUserId: userId })
-      console.log(`[Voice] telling ${socket.data.username ?? userId} to initiate`)
     }
   })
 
@@ -49,5 +54,13 @@ export function registerVoiceHandlers(io: Server, socket: Socket) {
   // ── Relay speaking indicator ───────────────────────────────
   socket.on('voice:speaking', ({ gameId, speaking }: { gameId: string; speaking: boolean }) => {
     socket.to(gameId).emit('voice:speaking', { userId, speaking })
+  })
+
+  // ── Cleanup on disconnect ──────────────────────────────────
+  socket.on('disconnect', () => {
+    voiceReady.forEach((players, gameId) => {
+      players.delete(userId)
+      if (players.size === 0) voiceReady.delete(gameId)
+    })
   })
 }
