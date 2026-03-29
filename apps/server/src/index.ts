@@ -23,8 +23,12 @@ const io = new Server(app.server, {
     methods: ['GET', 'POST'],
     credentials: false,
   },
-  transports: ['polling', 'websocket'],
+  transports: ['websocket', 'polling'],
   allowEIO3: true,
+  pingTimeout: 60000,
+  pingInterval: 25000,
+  upgradeTimeout: 30000,
+  maxHttpBufferSize: 1e6,
 })
 
 // ── Plugins ──

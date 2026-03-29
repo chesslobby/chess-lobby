@@ -21,14 +21,12 @@ export function getSocket(): Socket {
     autoConnect: true,
     reconnection: true,
     reconnectionAttempts: 20,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    transports: ['polling', 'websocket'],  // polling first for Render compatibility
-    upgrade: true,
-    rememberUpgrade: false,
-    timeout: 30000,
-    pingTimeout: 30000,
-    pingInterval: 10000,
+    reconnectionDelay: 2000,
+    reconnectionDelayMax: 10000,
+    transports: ['websocket'],  // websocket only — polling causes transport close on Render
+    timeout: 60000,
+    pingTimeout: 60000,
+    pingInterval: 25000,
   })
 
   socket.on('connect', () => {
