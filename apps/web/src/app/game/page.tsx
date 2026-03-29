@@ -6,6 +6,7 @@ import { getSocket } from '@/lib/socket'
 import { getUser } from '@/lib/api'
 import { playMoveSound, playCaptureSound, playCheckSound, playGameEndSound } from '@/lib/sounds'
 import { showToast } from '@/components/Toast'
+import { detectOpeningFromMoves } from '@/lib/openings'
 
 // ── Constants ───────────────────────────────────────────────────
 const THEMES = [
@@ -146,6 +147,7 @@ export default function GamePage() {
   const [gameOverDividerAdded, setGameOverDividerAdded] = useState(false)
   const [shareCopied, setShareCopied] = useState(false)
   const [shareWhatsAppSent, setShareWhatsAppSent] = useState(false)
+  const [openingName, setOpeningName] = useState('')
   const [showOpponentProfile, setShowOpponentProfile] = useState(false)
   const floatingIdRef = useRef(0)
 
@@ -174,6 +176,17 @@ export default function GamePage() {
     if (chatScrollRef.current)
       chatScrollRef.current.scrollTop = chatScrollRef.current.scrollHeight
   }, [messages])
+
+  // ── Opening detection ─────────────────────────────────────
+  useEffect(() => {
+    const allMoves: string[] = []
+    moveHistory.forEach(row => { if (row.w && row.w !== '—') allMoves.push(row.w); if (row.b) allMoves.push(row.b) })
+    if (pendingWhite) allMoves.push(pendingWhite)
+    if (allMoves.length > 0 && allMoves.length <= 20) {
+      const name = detectOpeningFromMoves(allMoves)
+      if (name && name !== 'Opening') setOpeningName(name)
+    }
+  }, [moveHistory, pendingWhite])
 
   // ── Mount guard (prevents localStorage hydration mismatch) ──
   const [mounted, setMounted] = useState(false)
@@ -910,8 +923,11 @@ export default function GamePage() {
                   <div style={{ color:'#9aa5b4', fontSize:'0.82rem', padding:'0.4rem' }}>Rematch offered... waiting</div>
                 )}
               </div>
-              <div style={{ display:'flex', gap:'0.75rem', justifyContent:'center' }}>
+              <div style={{ display:'flex', gap:'0.75rem', justifyContent:'center', flexWrap:'wrap' }}>
                 <button onClick={() => { localStorage.removeItem('current_game'); window.location.href = '/lobby' }} style={{ background:'transparent', color:'#c9a84c', border:'1.5px solid rgba(201,168,76,0.5)', borderRadius:'8px', padding:'0.7rem 1.25rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>New Game</button>
+                {gameInfo?.gameId && (
+                  <button onClick={() => { window.location.href = `/analysis/${gameInfo.gameId}` }} style={{ background:'rgba(59,130,246,0.12)', color:'#60a5fa', border:'1.5px solid rgba(59,130,246,0.4)', borderRadius:'8px', padding:'0.7rem 1.25rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>📊 Analyze</button>
+                )}
                 <button onClick={() => { localStorage.removeItem('current_game'); window.location.href = '/' }} style={{ background:'transparent', color:'#9aa5b4', border:'1.5px solid rgba(255,255,255,0.15)', borderRadius:'8px', padding:'0.7rem 1.25rem', fontSize:'0.9rem', cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif' }}>Home</button>
               </div>
               {/* Share game */}
@@ -1057,6 +1073,11 @@ export default function GamePage() {
             {/* Move history */}
             <div ref={moveScrollRef} className="moves-scroll" style={{ flex:1, padding:'0.4rem 0.5rem', overflowY:'auto' }}>
               <div style={{ fontSize:'0.68rem', color:'#4a5568', textTransform:'uppercase', letterSpacing:'0.08em', marginBottom:'0.3rem' }}>Moves</div>
+              {openingName && (
+                <div style={{ fontSize:'0.7rem', color:'#c9a84c', background:'rgba(201,168,76,0.08)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:4, padding:'0.2rem 0.4rem', marginBottom:'0.3rem', fontStyle:'italic' }}>
+                  📖 {openingName}
+                </div>
+              )}
               {moveHistory.map((m, i) => {
                 const isLast = i === moveHistory.length - 1 && !pendingWhite
                 return (

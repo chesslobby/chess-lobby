@@ -7,6 +7,7 @@ import { getUser, clearAuth, isLoggedIn } from '@/lib/api'
 const NAV_LINKS = [
   { href: '/lobby',       label: 'Play' },
   { href: '/puzzles',     label: 'Puzzles' },
+  { href: '/learn',       label: 'Learn' },
   { href: '/tournaments', label: 'Tournaments' },
   { href: '/leaderboard', label: 'Leaderboard' },
 ]
@@ -258,6 +259,12 @@ export default function Navbar() {
                     </Link>
                     <Link href="/profile" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                       <span>📜</span> Game History
+                    </Link>
+                    <Link href="/openings" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                      <span>📖</span> Opening Explorer
+                    </Link>
+                    <Link href="/endgames" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                      <span>♟</span> Endgame Practice
                     </Link>
                     <div style={{ height: '1px', background: 'rgba(201,168,76,0.1)', margin: '0.2rem 0' }} />
                     <button className="dropdown-item" style={{ color: '#ef4444' }} onClick={() => { setDropdownOpen(false); clearAuth(); window.location.href = '/' }}>
