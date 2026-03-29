@@ -30,13 +30,15 @@ function timeLabel(ts: number): string {
 
 function StatusBadge({ status }: { status: string }) {
   const map = {
-    live: { bg: 'rgba(34,197,94,.12)', border: 'rgba(34,197,94,.3)', color: '#22c55e', text: '● Live' },
+    live: { bg: 'rgba(34,197,94,.12)', border: 'rgba(34,197,94,.3)', color: '#22c55e', text: 'Live', isLive: true },
     upcoming: { bg: 'rgba(59,130,246,.1)', border: 'rgba(59,130,246,.3)', color: '#60a5fa', text: '◷ Soon' },
     finished: { bg: 'rgba(255,255,255,.05)', border: 'rgba(255,255,255,.1)', color: '#4a5568', text: '✓ Ended' },
   }
-  const s = map[status] || map.finished
+  const s = (map as any)[status] || map.finished
   return (
-    <span style={{ background: s.bg, border: `1px solid ${s.border}`, color: s.color, padding: '.2rem .6rem', borderRadius: 999, fontSize: '.75rem', fontWeight: 600 }}>
+    <span style={{ background: s.bg, border: `1px solid ${s.border}`, color: s.color, padding: '.2rem .6rem', borderRadius: 999, fontSize: '.75rem', fontWeight: 600, display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+      {s.isLive && <span className="live-indicator" style={{ display: 'inline-block', width: '6px', height: '6px', borderRadius: '50%', background: '#22c55e' }} />}
+      {!s.isLive && (status === 'upcoming' ? '◷ ' : '✓ ')}
       {s.text}
     </span>
   )
@@ -64,10 +66,23 @@ export default function TournamentsPage() {
   return (
     <>
       <style>{`
-        .t-card:hover{border-color:rgba(201,168,76,.35)!important;background:rgba(255,255,255,.06)!important;}
-        .join-btn{background:rgba(201,168,76,.15);color:#c9a84c;border:1px solid rgba(201,168,76,.4);border-radius:7px;padding:.35rem .9rem;font-size:.82rem;cursor:pointer;text-decoration:none;display:inline-block;font-family:var(--font-crimson),Georgia,serif;transition:background .15s;}
-        .join-btn:hover{background:rgba(201,168,76,.28);}
+        .t-card {
+          transition: border-color .2s, background .2s, transform .2s, box-shadow .2s;
+        }
+        .t-card:hover {
+          border-color: rgba(201,168,76,.4) !important;
+          background: rgba(255,255,255,.06) !important;
+          transform: translateY(-2px);
+          box-shadow: 0 6px 24px rgba(0,0,0,0.25);
+        }
+        .join-btn{background:rgba(201,168,76,.15);color:#c9a84c;border:1px solid rgba(201,168,76,.4);border-radius:7px;padding:.35rem .9rem;font-size:.82rem;cursor:pointer;text-decoration:none;display:inline-block;font-family:var(--font-crimson),Georgia,serif;transition:all .15s;}
+        .join-btn:hover{background:rgba(201,168,76,.28); transform: translateY(-1px); box-shadow: 0 3px 12px rgba(201,168,76,0.2);}
         .join-btn.disabled{opacity:.4;pointer-events:none;}
+        @keyframes livePulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.5; }
+        }
+        .live-indicator { animation: livePulse 1.2s ease-in-out infinite; }
       `}</style>
 
       <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>

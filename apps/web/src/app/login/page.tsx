@@ -11,6 +11,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [shaking, setShaking] = useState(false)
+
+  function triggerShake() {
+    setShaking(true)
+    setTimeout(() => setShaking(false), 500)
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -22,6 +28,7 @@ export default function LoginPage() {
       window.location.href = '/lobby'
     } catch {
       setError('Invalid email or password')
+      triggerShake()
     } finally {
       setLoading(false)
     }
@@ -36,6 +43,7 @@ export default function LoginPage() {
       window.location.href = '/lobby'
     } catch {
       setError('Could not start guest session')
+      triggerShake()
     } finally {
       setLoading(false)
     }
@@ -128,6 +136,16 @@ export default function LoginPage() {
           to   { opacity: 1; transform: translateY(0); }
         }
         .fade-in { animation: fadeInUp 0.7s ease both; }
+        @keyframes shake {
+          0%, 100% { transform: translateX(0); }
+          15%       { transform: translateX(-8px); }
+          30%       { transform: translateX(8px); }
+          45%       { transform: translateX(-6px); }
+          60%       { transform: translateX(6px); }
+          75%       { transform: translateX(-4px); }
+          90%       { transform: translateX(4px); }
+        }
+        .shake { animation: shake 0.5s ease; }
       `}</style>
 
       <div
@@ -154,7 +172,7 @@ export default function LoginPage() {
           }}
         />
 
-        <div className="login-card fade-in" style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 1 }}>
+        <div className={`login-card fade-in${shaking ? ' shake' : ''}`} style={{ width: '100%', maxWidth: 400, position: 'relative', zIndex: 1 }}>
 
           {/* Top gold accent line */}
           <div style={{ height: '2px', background: 'linear-gradient(to right, transparent, #c9a84c, transparent)', marginBottom: '1.75rem', borderRadius: '1px' }} />

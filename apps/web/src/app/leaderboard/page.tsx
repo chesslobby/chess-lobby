@@ -90,6 +90,15 @@ export default function LeaderboardPage() {
           border-radius: 50%;
           animation: spin 0.8s linear infinite;
         }
+        @keyframes podiumRise {
+          from { opacity: 0; transform: translateY(20px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .podium-card { animation: podiumRise 0.5s ease both; }
+        .podium-card:nth-child(2) { animation-delay: 0.1s; }
+        .podium-card:nth-child(3) { animation-delay: 0.2s; }
+        .lb-row { transition: background 0.15s; }
+        .lb-row:hover { background: rgba(201,168,76,0.07) !important; }
       `}</style>
 
       <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson), Georgia, serif' }}>
@@ -113,6 +122,55 @@ export default function LeaderboardPage() {
               </button>
             ))}
           </div>
+
+          {/* Podium — top 3 visualization */}
+          {!loading && players.length >= 3 && !searchQuery && activeTab === 'Global' && (
+            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '0.75rem', marginBottom: '2rem', padding: '1rem 0' }}>
+              {/* 2nd place */}
+              {(() => {
+                const p = players[1]
+                return (
+                  <div className="podium-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                    <div style={{ width: '44px', height: '44px', borderRadius: '50%', background: 'rgba(192,192,192,0.15)', border: '2px solid #c0c0c0', color: '#c0c0c0', fontSize: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-playfair), Georgia, serif' }}>{p.name[0]}</div>
+                    <span style={{ fontSize: '0.78rem', color: '#e8e0d0' }}>{p.name}</span>
+                    <span style={{ fontSize: '0.7rem', color: '#c0c0c0', fontFamily: 'monospace' }}>{p.elo}</span>
+                    <div style={{ width: '80px', background: 'rgba(192,192,192,0.12)', border: '1px solid rgba(192,192,192,0.3)', borderBottom: 'none', borderRadius: '6px 6px 0 0', padding: '0.5rem 0', textAlign: 'center', height: '60px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '1.4rem' }}>🥈</span>
+                    </div>
+                  </div>
+                )
+              })()}
+              {/* 1st place */}
+              {(() => {
+                const p = players[0]
+                return (
+                  <div className="podium-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                    <div style={{ fontSize: '1.2rem', filter: 'drop-shadow(0 0 8px rgba(201,168,76,0.8))' }}>👑</div>
+                    <div style={{ width: '52px', height: '52px', borderRadius: '50%', background: 'rgba(201,168,76,0.2)', border: '2.5px solid #c9a84c', color: '#c9a84c', fontSize: '1.15rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-playfair), Georgia, serif', boxShadow: '0 0 16px rgba(201,168,76,0.35)' }}>{p.name[0]}</div>
+                    <span style={{ fontSize: '0.82rem', color: '#c9a84c', fontWeight: 700 }}>{p.name}</span>
+                    <span style={{ fontSize: '0.73rem', color: '#e8c86d', fontFamily: 'monospace', fontWeight: 700 }}>{p.elo}</span>
+                    <div style={{ width: '90px', background: 'rgba(201,168,76,0.12)', border: '1px solid rgba(201,168,76,0.4)', borderBottom: 'none', borderRadius: '6px 6px 0 0', padding: '0.5rem 0', textAlign: 'center', height: '80px', display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 0 20px rgba(201,168,76,0.15)' }}>
+                      <span style={{ fontSize: '1.6rem' }}>🥇</span>
+                    </div>
+                  </div>
+                )
+              })()}
+              {/* 3rd place */}
+              {(() => {
+                const p = players[2]
+                return (
+                  <div className="podium-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '0.4rem' }}>
+                    <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(205,127,50,0.15)', border: '2px solid #cd7f32', color: '#cd7f32', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-playfair), Georgia, serif' }}>{p.name[0]}</div>
+                    <span style={{ fontSize: '0.75rem', color: '#e8e0d0' }}>{p.name}</span>
+                    <span style={{ fontSize: '0.68rem', color: '#cd7f32', fontFamily: 'monospace' }}>{p.elo}</span>
+                    <div style={{ width: '72px', background: 'rgba(205,127,50,0.1)', border: '1px solid rgba(205,127,50,0.3)', borderBottom: 'none', borderRadius: '6px 6px 0 0', padding: '0.5rem 0', textAlign: 'center', height: '46px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <span style={{ fontSize: '1.2rem' }}>🥉</span>
+                    </div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
 
           {/* Search */}
           <div style={{ marginBottom: '1.25rem' }}>
@@ -145,7 +203,7 @@ export default function LeaderboardPage() {
                     const bg = isHovered && player.rank > 3 ? 'rgba(255,255,255,0.03)' : rowBg(player.rank)
 
                     return (
-                      <tr key={player.rank} onMouseEnter={() => setHoveredRow(player.rank)} onMouseLeave={() => setHoveredRow(null)} style={{ background: bg }}>
+                      <tr key={player.rank} className="lb-row" onMouseEnter={() => setHoveredRow(player.rank)} onMouseLeave={() => setHoveredRow(null)} style={{ background: bg }}>
                         <td style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.03)', fontSize: '0.92rem', color: player.rank <= 3 ? '#c9a84c' : '#4a5568', fontWeight: player.rank <= 3 ? 700 : 400, verticalAlign: 'middle' }}>
                           {medal ? `${medal} ${player.rank}` : player.rank}
                         </td>

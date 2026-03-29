@@ -242,6 +242,25 @@ export default function PuzzlePage() {
         @keyframes flashR{0%,100%{background-color:inherit}50%{background-color:rgba(239,68,68,.5)}}
         .flash-green{animation:flashG .5s ease}
         .flash-red{animation:flashR .5s ease}
+        @keyframes flameDance {
+          0%,100% { transform: scale(1) rotate(-3deg); }
+          33%      { transform: scale(1.15) rotate(3deg); }
+          66%      { transform: scale(1.05) rotate(-2deg); }
+        }
+        .flame { display: inline-block; animation: flameDance 1.5s ease-in-out infinite; }
+        @keyframes starFill {
+          from { opacity: 0; transform: scale(0) rotate(-30deg); }
+          to   { opacity: 1; transform: scale(1) rotate(0deg); }
+        }
+        .diff-star { display: inline-block; animation: starFill 0.4s cubic-bezier(.34,1.56,.64,1) both; }
+        .diff-star:nth-child(2) { animation-delay: 0.1s; }
+        .diff-star:nth-child(3) { animation-delay: 0.2s; }
+        @keyframes solvedPop {
+          0%   { transform: scale(0.8); opacity: 0; }
+          60%  { transform: scale(1.08); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+        .solved-banner { animation: solvedPop 0.5s cubic-bezier(.34,1.56,.64,1) both; }
       `}</style>
 
       <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
@@ -262,8 +281,17 @@ export default function PuzzlePage() {
               <span style={{ background: 'rgba(201,168,76,.1)', border: '1px solid rgba(201,168,76,.3)', color: '#c9a84c', padding: '.2rem .7rem', borderRadius: 999, fontSize: '.82rem' }}>
                 {puzzle.theme}
               </span>
-              <span style={{ color: diffColor(puzzle.difficulty), fontSize: '.85rem' }}>{diffStars(puzzle.difficulty)}</span>
-              {streak > 0 && <span style={{ color: '#f39c12', fontSize: '.9rem' }}>🔥 {streak} day streak</span>}
+              <span>
+                {diffStars(puzzle.difficulty).split('').map((star, i) => (
+                  <span key={i} className="diff-star" style={{ color: diffColor(puzzle.difficulty), fontSize: '.9rem' }}>{star}</span>
+                ))}
+              </span>
+              {streak > 0 && (
+                <span style={{ color: '#f39c12', fontSize: '.9rem', background: 'rgba(243,156,18,0.1)', border: '1px solid rgba(243,156,18,0.3)', padding: '.2rem .65rem', borderRadius: 999, display: 'inline-flex', alignItems: 'center', gap: '.3rem' }}>
+                  <span className="flame">🔥</span>
+                  {streak} day streak
+                </span>
+              )}
             </div>
           </div>
 
@@ -323,7 +351,7 @@ export default function PuzzlePage() {
 
               {/* Solved overlay message */}
               {solved && (
-                <div style={{ marginTop: '1rem', padding: '1rem 1.25rem', background: 'rgba(34,197,94,.1)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 10, textAlign: 'center' }}>
+                <div className="solved-banner" style={{ marginTop: '1rem', padding: '1rem 1.25rem', background: 'rgba(34,197,94,.1)', border: '1px solid rgba(34,197,94,.3)', borderRadius: 10, textAlign: 'center' }}>
                   <div style={{ fontSize: '1.5rem', marginBottom: '.35rem' }}>✅</div>
                   <div style={{ color: '#22c55e', fontWeight: 700, fontSize: '1.05rem', fontFamily: 'var(--font-playfair),Georgia,serif' }}>
                     {todayMoves <= 1 ? 'Brilliant!' : todayMoves <= 2 ? 'Excellent!' : 'Good job!'}
