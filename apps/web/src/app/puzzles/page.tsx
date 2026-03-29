@@ -70,7 +70,6 @@ export default function PuzzlePage() {
   const dayOfYear = getDayOfYear()
   const puzzle = DAILY_PUZZLES[dayOfYear % DAILY_PUZZLES.length]
 
-  const [Chess, setChess] = useState(null)
   const [chess, setChess2] = useState(null)
   const [board, setBoard] = useState(null)
   const [selected, setSelected] = useState(null)
@@ -94,9 +93,8 @@ export default function PuzzlePage() {
   // Init chess.js
   useEffect(() => {
     try {
-      const C = require('chess.js').Chess
-      setChess(C)
-      const c = new C()
+      const Chess = require('chess.js').Chess
+      const c = new Chess()
       c.load(puzzle.fen)
       setChess2(c)
       setBoard(parseFen(puzzle.fen))

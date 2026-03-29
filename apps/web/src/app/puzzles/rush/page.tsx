@@ -57,7 +57,6 @@ export default function PuzzleRushPage() {
   const [timeLeft, setTimeLeft] = useState(TOTAL_SECONDS)
   const [board, setBoard] = useState(null)
   const [chess, setChess] = useState(null)
-  const [Chess, setChessClass] = useState(null)
   const [selected, setSelected] = useState(null)
   const [validMoves, setValidMoves] = useState([])
   const [flashSq, setFlashSq] = useState(null)
@@ -71,20 +70,15 @@ export default function PuzzleRushPage() {
 
   useEffect(() => {
     try {
-      const C = require('chess.js').Chess
-      setChessClass(C)
-    } catch {}
-    try {
       const b = parseInt(localStorage.getItem('puzzleRushBest') || '0')
       setBestScore(b)
     } catch {}
   }, [])
 
-  function loadPuzzle(idx, C?) {
+  function loadPuzzle(idx) {
     const p = RUSH_PUZZLES[idx % RUSH_PUZZLES.length]
-    const Cls = C || Chess
-    if (!Cls) return
-    const c = new Cls()
+    const Chess = require('chess.js').Chess
+    const c = new Chess()
     c.load(p.fen)
     setChess(c)
     setBoard(parseFen(p.fen))
@@ -132,7 +126,7 @@ export default function PuzzleRushPage() {
     setMoveIdx(0)
     setSelected(null)
     setValidMoves([])
-    if (Chess) loadPuzzle(next)
+    loadPuzzle(next)
   }
 
   function handleSquareClick(col, row) {
