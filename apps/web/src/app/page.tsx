@@ -130,6 +130,33 @@ export default function HomePage() {
           backdrop-filter: blur(10px);
         }
         .how-card:hover { border-color: rgba(201,168,76,0.6); box-shadow: 0 8px 32px rgba(201,168,76,0.15); transform: translateY(-4px); }
+        .feature-card {
+          background: rgba(255,255,255,0.03);
+          border: 1px solid rgba(201,168,76,0.15);
+          border-radius: 12px; padding: 1.35rem 1.2rem;
+          text-decoration: none; display: flex; flex-direction: column;
+          gap: 0.4rem; align-items: flex-start;
+          transition: border-color 0.2s, background 0.2s, transform 0.2s, box-shadow 0.2s;
+        }
+        .feature-card:hover {
+          border-color: rgba(201,168,76,0.45);
+          background: rgba(255,255,255,0.06);
+          transform: translateY(-3px);
+          box-shadow: 0 8px 28px rgba(0,0,0,0.3);
+        }
+        .btn-learn {
+          background: transparent; color: #c9a84c;
+          border: 1.5px solid rgba(201,168,76,0.5);
+          padding: 0.7rem 2rem; border-radius: 8px;
+          font-size: 0.95rem; font-weight: 700; letter-spacing: 0.04em;
+          cursor: pointer; transition: background 0.2s, transform 0.2s;
+          font-family: var(--font-playfair), Georgia, serif;
+          text-decoration: none; display: inline-block;
+        }
+        .btn-learn:hover { background: rgba(201,168,76,0.1); transform: translateY(-2px); }
+        @media (max-width: 640px) {
+          .feature-grid { grid-template-columns: 1fr 1fr !important; }
+        }
         .stat-card {
           text-align: center; flex: 1;
         }
@@ -212,6 +239,41 @@ export default function HomePage() {
               <div style={{ fontSize:'0.8rem', color:'#4a5568', marginTop:'0.3rem', textTransform:'uppercase', letterSpacing:'0.08em' }}>{s.label}</div>
             </div>
           ))}
+        </div>
+
+        {/* ── Features grid ──────────────────────────────── */}
+        <div className="fade-in-5" style={{ position:'relative', zIndex:2, width:'100%', maxWidth:'900px', padding:'0 1.5rem', marginBottom:'4rem' }}>
+          <div style={{ textAlign:'center', marginBottom:'1.75rem' }}>
+            <div style={{ display:'flex', alignItems:'center', gap:'1rem', justifyContent:'center', marginBottom:'0.5rem' }}>
+              <div style={{ width:'40px', height:'1px', background:'linear-gradient(to right, transparent, rgba(201,168,76,0.5))' }} />
+              <span style={{ fontSize:'0.7rem', letterSpacing:'0.35em', textTransform:'uppercase', color:'#8b6914' }}>Everything you need</span>
+              <div style={{ width:'40px', height:'1px', background:'linear-gradient(to left, transparent, rgba(201,168,76,0.5))' }} />
+            </div>
+            <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.6rem', color:'#e8e0d0', margin:0 }}>Improve &amp; compete</h2>
+          </div>
+          <div className="feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'0.85rem' }}>
+            {[
+              { icon:'🎮', title:'Play Chess',         desc:'Find opponents instantly',       href:'/lobby'       },
+              { icon:'🧩', title:'Daily Puzzles',      desc:'Sharpen your tactics daily',     href:'/puzzles'     },
+              { icon:'📖', title:'Opening Explorer',   desc:'Learn 20+ chess openings',       href:'/openings'    },
+              { icon:'♟',  title:'Endgame Practice',   desc:'Master 7 key endgames',          href:'/endgames'    },
+              { icon:'🏆', title:'Tournaments',        desc:'Compete in Arena & Swiss',        href:'/tournaments' },
+              { icon:'📊', title:'Game Analysis',      desc:'Review and improve your play',   href:'/learn'       },
+            ].map((f, i) => (
+              <Link key={i} href={f.href} className="feature-card">
+                <span style={{ fontSize:'1.75rem', lineHeight:1 }}>{f.icon}</span>
+                <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', color:'#e8e0d0', fontWeight:700, fontSize:'0.92rem' }}>{f.title}</span>
+                <span style={{ color:'#4a5568', fontSize:'0.78rem' }}>{f.desc}</span>
+              </Link>
+            ))}
+          </div>
+          {/* Learn CTA */}
+          <div style={{ textAlign:'center', marginTop:'1.75rem' }}>
+            <Link href="/learn" className="btn-learn">📚 Start Learning →</Link>
+            <p style={{ fontSize:'0.78rem', color:'#4a5568', margin:'0.5rem 0 0', letterSpacing:'0.04em' }}>
+              Puzzles &bull; Openings &bull; Endgames &bull; Analysis
+            </p>
+          </div>
         </div>
 
         {/* ── How it works ────────────────────────────────── */}

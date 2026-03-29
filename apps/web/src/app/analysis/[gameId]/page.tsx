@@ -113,23 +113,37 @@ export default function AnalysisPage({ params }) {
 
   useEffect(() => {
     async function load() {
+      const url = `${API}/games/${gameId}/replay`
+      console.log('Fetching game:', url)
       try {
-        const res = await fetch(`${API}/games/${gameId}/replay`)
-        if (!res.ok) throw new Error('Game not found')
-        const data = await res.json()
-        setGame(data.game)
-        if (data.game?.pgn) {
-          const { analyses: a, sanMoves: sm } = analyzePgn(data.game.pgn)
-          setAnalyses(a)
-          setSanMoves(sm)
-          if (sm.length > 0) {
-            const name = detectOpeningFromMoves(sm)
-            if (name && name !== 'Opening') setOpeningName(name)
-          }
-          if (a.length > 0) setDisplayFen(a[a.length - 1].fen)
+        const res = await fetch(url)
+        if (res.status === 404) {
+          setError('Game not found. It may have been a guest game or the server restarted.')
+          return
         }
+        if (!res.ok) {
+          setError(`Server error (${res.status}). Please try again later.`)
+          return
+        }
+        const data = await res.json()
+        console.log('Game data received:', data)
+        const g = data.game
+        setGame(g)
+        if (!g?.pgn) {
+          setError('This game has no recorded moves. Play a complete game to analyze it.')
+          return
+        }
+        const { analyses: a, sanMoves: sm } = analyzePgn(g.pgn)
+        setAnalyses(a)
+        setSanMoves(sm)
+        if (sm.length > 0) {
+          const name = detectOpeningFromMoves(sm)
+          if (name && name !== 'Opening') setOpeningName(name)
+        }
+        if (a.length > 0) setDisplayFen(a[a.length - 1].fen)
       } catch (e) {
-        setError('Could not load game. It may not exist or the PGN is unavailable.')
+        console.error('Analysis fetch error:', e)
+        setError('Could not connect to server. Make sure the game server is running.')
       } finally {
         setLoading(false)
       }
@@ -192,7 +206,13 @@ export default function AnalysisPage({ params }) {
           )}
 
           {error && (
-            <div style={{ textAlign: 'center', padding: '4rem', color: '#ef4444' }}>{error}</div>
+            <div style={{ textAlign: 'center', padding: '3rem 1rem' }}>
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>📭</div>
+              <div style={{ color: '#ef4444', fontSize: '0.95rem', marginBottom: '1rem' }}>{error}</div>
+              <Link href="/lobby" style={{ display: 'inline-block', background: 'rgba(201,168,76,0.12)', color: '#c9a84c', border: '1px solid rgba(201,168,76,0.35)', borderRadius: 8, padding: '0.55rem 1.25rem', textDecoration: 'none', fontSize: '0.88rem', fontWeight: 600 }}>
+                ♟ Play a Game
+              </Link>
+            </div>
           )}
 
           {!loading && !error && game && (
