@@ -17,6 +17,12 @@ const THEMES = [
 const ICE_SERVERS = [
   { urls: 'stun:stun.l.google.com:19302' },
   { urls: 'stun:stun1.l.google.com:19302' },
+  { urls: 'stun:stun2.l.google.com:19302' },
+  { urls: 'stun:stun3.l.google.com:19302' },
+  { urls: 'stun:stun4.l.google.com:19302' },
+  { urls: 'turn:openrelay.metered.ca:80',          username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443',         username: 'openrelayproject', credential: 'openrelayproject' },
+  { urls: 'turn:openrelay.metered.ca:443?transport=tcp', username: 'openrelayproject', credential: 'openrelayproject' },
 ]
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
@@ -392,10 +398,47 @@ export default function GamePage() {
   // ── Voice ────────────────────────────────────────────────────
   async function startVoice(gameInfoOverride?: any) {
     const info = gameInfoOverride ?? gameInfo
+    if (!info?.gameId) return
+
     try {
       setVoiceState('connecting')
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+
+      const stream = await navigator.mediaDevices.getUserMedia({
+        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
+        video: false,
+      })
       setLocalStream(stream)
+
+      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 10 })
+      peerRef.current = pc
+
+      stream.getTracks().forEach(track => pc.addTrack(track, stream))
+
+      pc.ontrack = (event) => {
+        console.log('Remote audio track received!')
+        if (remoteAudioRef.current) {
+          remoteAudioRef.current.srcObject = event.streams[0]
+          remoteAudioRef.current.play().catch(console.error)
+        }
+        setVoiceState('connected')
+      }
+
+      pc.onicecandidate = (event) => {
+        if (event.candidate) {
+          getSocket().emit('voice:ice', { gameId: info.gameId, candidate: event.candidate })
+        }
+      }
+
+      pc.onconnectionstatechange = () => {
+        console.log('WebRTC connection state:', pc.connectionState)
+        if (pc.connectionState === 'connected') setVoiceState('connected')
+        else if (pc.connectionState === 'failed') setVoiceState('error')
+        else if (pc.connectionState === 'disconnected') setVoiceState('connecting')
+      }
+
+      pc.oniceconnectionstatechange = () => {
+        console.log('ICE state:', pc.iceConnectionState)
+      }
 
       // Speaking detection via Web Audio API
       try {
@@ -411,60 +454,60 @@ export default function GamePage() {
           const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
           const speaking = average > 15
           setIsSpeaking(speaking)
-          if (speaking) getSocket().emit('voice:speaking', { gameId: info?.gameId, speaking: true })
+          if (speaking) getSocket().emit('voice:speaking', { gameId: info.gameId, speaking: true })
         }, 100)
-      } catch {}
-
-      const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
-      peerRef.current = pc
-
-      stream.getTracks().forEach(track => pc.addTrack(track, stream))
-
-      pc.ontrack = (event) => {
-        if (remoteAudioRef.current) remoteAudioRef.current.srcObject = event.streams[0]
-        setVoiceState('connected')
-      }
-
-      pc.onicecandidate = (event) => {
-        if (event.candidate) {
-          getSocket().emit('voice:ice', {
-            gameId: info?.gameId,
-            toUserId: info?.opponent?.id,
-            candidate: event.candidate,
-          })
-        }
+      } catch (err) {
+        console.error('Audio analysis error:', err)
       }
 
       const socket = getSocket()
-      socket.emit('voice:join', { gameId: info?.gameId })
 
+      socket.off('voice:initiate')
       socket.on('voice:initiate', async ({ toUserId }: any) => {
+        console.log('We are the caller, creating offer')
         const offer = await pc.createOffer()
         await pc.setLocalDescription(offer)
-        socket.emit('voice:offer', { gameId: info?.gameId, toUserId, offer })
+        socket.emit('voice:offer', { gameId: info.gameId, toUserId, offer: pc.localDescription })
       })
 
+      socket.off('voice:offer')
       socket.on('voice:offer', async ({ fromUserId, offer }: any) => {
-        await pc.setRemoteDescription(offer)
+        console.log('Received offer, creating answer')
+        await pc.setRemoteDescription(new RTCSessionDescription(offer))
         const answer = await pc.createAnswer()
         await pc.setLocalDescription(answer)
-        socket.emit('voice:answer', { gameId: info?.gameId, toUserId: fromUserId, answer })
+        socket.emit('voice:answer', { gameId: info.gameId, toUserId: fromUserId, answer: pc.localDescription })
       })
 
+      socket.off('voice:answer')
       socket.on('voice:answer', async ({ answer }: any) => {
-        await pc.setRemoteDescription(answer)
+        console.log('Received answer')
+        if (pc.signalingState !== 'stable') {
+          await pc.setRemoteDescription(new RTCSessionDescription(answer))
+        }
       })
 
+      socket.off('voice:ice')
       socket.on('voice:ice', async ({ candidate }: any) => {
-        try { await pc.addIceCandidate(candidate) } catch {}
+        try {
+          if (candidate && pc.remoteDescription) {
+            await pc.addIceCandidate(new RTCIceCandidate(candidate))
+          }
+        } catch (err) {
+          console.error('ICE candidate error:', err)
+        }
       })
 
+      socket.off('voice:peer-left')
       socket.on('voice:peer-left', () => {
         setVoiceState('idle')
         showToast('Opponent left voice chat', 'info')
       })
 
-    } catch (err) {
+      // Join voice room — server decides who initiates
+      socket.emit('voice:join', { gameId: info.gameId })
+
+    } catch (err: any) {
       console.error('Voice error:', err)
       setVoiceState('error')
       showToast('Microphone access denied', 'error')
@@ -472,6 +515,8 @@ export default function GamePage() {
   }
 
   function stopVoice() {
+    const socket = getSocket()
+    ;['voice:initiate','voice:offer','voice:answer','voice:ice','voice:peer-left'].forEach(ev => socket.off(ev))
     if (speakingIntervalRef.current) { clearInterval(speakingIntervalRef.current); speakingIntervalRef.current = null }
     if (audioContextRef.current) { audioContextRef.current.close().catch(() => null); audioContextRef.current = null }
     localStream?.getTracks().forEach(t => t.stop())
@@ -481,9 +526,7 @@ export default function GamePage() {
     setVoiceState('idle')
     setIsSpeaking(false)
     setIsOpponentSpeaking(false)
-    getSocket().emit('voice:leave', { gameId: gameInfo?.gameId })
-    ;['voice:initiate','voice:offer','voice:answer','voice:ice','voice:peer-left','voice:speaking']
-      .forEach(ev => getSocket().off(ev))
+    socket.emit('voice:leave', { gameId: gameInfo?.gameId })
   }
 
   function toggleMute() {
@@ -686,7 +729,7 @@ export default function GamePage() {
   return (
     <>
       {/* Hidden audio element for remote voice */}
-      <audio ref={remoteAudioRef} autoPlay style={{ display: 'none' }} />
+      <audio ref={remoteAudioRef} autoPlay playsInline style={{ display: 'none' }} />
 
       <style suppressHydrationWarning>{`
         .board-sq { transition: filter 0.1s; }

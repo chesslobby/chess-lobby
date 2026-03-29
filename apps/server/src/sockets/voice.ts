@@ -1,35 +1,26 @@
 // ─────────────────────────────────────────────────────────────
 //  Royal Chess — WebRTC Voice Signaling Handler
-//  The server only relays signals — actual audio is P2P
+//  Uses socket.io rooms for relay. Audio is P2P via TURN/STUN.
 //  Events: voice:join, voice:offer, voice:answer, voice:ice, voice:leave
 // ─────────────────────────────────────────────────────────────
 
 import { Server, Socket } from 'socket.io'
 
-// gameId → { userId → socketId }
-const voiceRooms = new Map<string, Map<string, string>>()
-
 export function registerVoiceHandlers(io: Server, socket: Socket) {
   const { userId } = socket.data
 
-  // ── Join voice channel ─────────────────────────────────────
-  socket.on('voice:join', ({ gameId }: { gameId: string }) => {
-    if (!voiceRooms.has(gameId)) voiceRooms.set(gameId, new Map())
+  // ── Join voice room ────────────────────────────────────────
+  socket.on('voice:join', async ({ gameId }: { gameId: string }) => {
+    const roomName = `voice:${gameId}`
+    await socket.join(roomName)
 
-    const room = voiceRooms.get(gameId)!
-    room.set(userId, socket.id)
+    const room = io.sockets.adapter.rooms.get(roomName)
+    const roomSize = room ? room.size : 0
+    console.log(`Voice room ${gameId} size: ${roomSize}`)
 
-    // Tell others in game that this user joined voice
-    socket.to(gameId).emit('voice:peer-joined', { userId })
-
-    // If there's already someone in the voice room, initiate offer
-    if (room.size >= 2) {
-      // Signal to the first joiner that a new peer is ready
-      const [existingUserId] = [...room.entries()].find(([uid]) => uid !== userId) ?? []
-      if (existingUserId) {
-        const existingSocketId = room.get(existingUserId)!
-        io.to(existingSocketId).emit('voice:initiate', { toUserId: userId })
-      }
+    if (roomSize >= 2) {
+      // Second player joined — tell them to initiate the offer
+      socket.emit('voice:initiate', { toUserId: userId })
     }
   })
 
@@ -37,47 +28,27 @@ export function registerVoiceHandlers(io: Server, socket: Socket) {
   socket.on('voice:offer', ({ gameId, toUserId, offer }: {
     gameId: string; toUserId: string; offer: any
   }) => {
-    const room = voiceRooms.get(gameId)
-    const targetSocketId = room?.get(toUserId)
-    if (!targetSocketId) return
-
-    io.to(targetSocketId).emit('voice:offer', {
-      fromUserId: userId,
-      offer,
-    })
+    socket.to(`voice:${gameId}`).emit('voice:offer', { fromUserId: userId, offer })
   })
 
   // ── Relay WebRTC answer ────────────────────────────────────
   socket.on('voice:answer', ({ gameId, toUserId, answer }: {
     gameId: string; toUserId: string; answer: any
   }) => {
-    const room = voiceRooms.get(gameId)
-    const targetSocketId = room?.get(toUserId)
-    if (!targetSocketId) return
-
-    io.to(targetSocketId).emit('voice:answer', {
-      fromUserId: userId,
-      answer,
-    })
+    socket.to(`voice:${gameId}`).emit('voice:answer', { fromUserId: userId, answer })
   })
 
   // ── Relay ICE candidate ────────────────────────────────────
-  socket.on('voice:ice', ({ gameId, toUserId, candidate }: {
-    gameId: string; toUserId: string; candidate: any
+  socket.on('voice:ice', ({ gameId, candidate }: {
+    gameId: string; candidate: any
   }) => {
-    const room = voiceRooms.get(gameId)
-    const targetSocketId = room?.get(toUserId)
-    if (!targetSocketId) return
-
-    io.to(targetSocketId).emit('voice:ice', {
-      fromUserId: userId,
-      candidate,
-    })
+    socket.to(`voice:${gameId}`).emit('voice:ice', { candidate })
   })
 
-  // ── Leave voice channel ────────────────────────────────────
+  // ── Leave voice room ───────────────────────────────────────
   socket.on('voice:leave', ({ gameId }: { gameId: string }) => {
-    leaveVoice(io, socket, gameId, userId)
+    socket.leave(`voice:${gameId}`)
+    socket.to(`voice:${gameId}`).emit('voice:peer-left', { userId })
   })
 
   // ── Relay speaking indicator ───────────────────────────────
@@ -87,18 +58,12 @@ export function registerVoiceHandlers(io: Server, socket: Socket) {
 
   // ── Cleanup on disconnect ──────────────────────────────────
   socket.on('disconnect', () => {
-    for (const [gameId] of voiceRooms.entries()) {
-      leaveVoice(io, socket, gameId, userId)
+    // socket.io automatically removes socket from all rooms on disconnect
+    // Notify all voice rooms this socket was in
+    for (const room of socket.rooms) {
+      if (room.startsWith('voice:')) {
+        socket.to(room).emit('voice:peer-left', { userId })
+      }
     }
   })
-}
-
-function leaveVoice(io: Server, socket: Socket, gameId: string, userId: string) {
-  const room = voiceRooms.get(gameId)
-  if (!room) return
-
-  room.delete(userId)
-  if (room.size === 0) voiceRooms.delete(gameId)
-
-  socket.to(gameId).emit('voice:peer-left', { userId })
 }
