@@ -80,6 +80,11 @@ export function registerVoiceHandlers(io: Server, socket: Socket) {
     leaveVoice(io, socket, gameId, userId)
   })
 
+  // ── Relay speaking indicator ───────────────────────────────
+  socket.on('voice:speaking', ({ gameId, speaking }: { gameId: string; speaking: boolean }) => {
+    socket.to(gameId).emit('voice:speaking', { userId, speaking })
+  })
+
   // ── Cleanup on disconnect ──────────────────────────────────
   socket.on('disconnect', () => {
     for (const [gameId] of voiceRooms.entries()) {

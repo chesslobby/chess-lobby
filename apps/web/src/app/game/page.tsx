@@ -117,6 +117,9 @@ export default function GamePage() {
   const [voiceState, setVoiceState]   = useState<'idle' | 'connecting' | 'connected' | 'error'>('idle')
   const [isMuted, setIsMuted]         = useState(false)
   const [localStream, setLocalStream] = useState<MediaStream | null>(null)
+  const [isSpeaking, setIsSpeaking]               = useState(false)
+  const [isOpponentSpeaking, setIsOpponentSpeaking] = useState(false)
+  const [isDeafened, setIsDeafened]               = useState(false)
 
   // New feature states
   const [showPromotion, setShowPromotion]   = useState(false)
@@ -148,7 +151,9 @@ export default function GamePage() {
   const peerRef         = useRef<RTCPeerConnection | null>(null)
   const remoteAudioRef  = useRef<HTMLAudioElement | null>(null)
   const statusTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const animTimeoutRef  = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const animTimeoutRef      = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const speakingIntervalRef = useRef<any>(null)
+  const audioContextRef     = useRef<AudioContext | null>(null)
 
   const theme = THEMES[boardTheme]
 
@@ -237,6 +242,8 @@ export default function GamePage() {
       setChess(ch); setFen(f); setBoard(fenToBoard(f)); setCurrentTurn(ch.turn())
       if (c) setClocks(c)
       setGameWaiting(false)
+      // Auto-connect voice when game starts
+      setTimeout(() => startVoice(info), 1000)
     })
 
     socket.on('game:move', ({ from: mFrom, to: mTo, fen: moveFen, clocks: c, san }: any) => {
@@ -328,9 +335,18 @@ export default function GamePage() {
       showToast('Opponent wants a rematch!', 'info')
     })
 
+    socket.on('voice:speaking', ({ userId, speaking }: any) => {
+      if (userId !== getUser()?.id) {
+        setIsOpponentSpeaking(speaking)
+        setTimeout(() => setIsOpponentSpeaking(false), 500)
+      }
+    })
+
     return () => {
       ['connect','disconnect','game:start','game:move','game:clock','game:end','game:invalid-move',
-       'game:draw-offered','game:opponent-disconnected','chat:receive','game:rematch-offered'].forEach(ev => socket.off(ev))
+       'game:draw-offered','game:opponent-disconnected','chat:receive','game:rematch-offered','voice:speaking'].forEach(ev => socket.off(ev))
+      if (speakingIntervalRef.current) clearInterval(speakingIntervalRef.current)
+      if (audioContextRef.current) audioContextRef.current.close().catch(() => null)
     }
   }, [mounted])
 
@@ -374,12 +390,30 @@ export default function GamePage() {
   }
 
   // ── Voice ────────────────────────────────────────────────────
-  async function startVoice() {
-    const info = gameInfo
+  async function startVoice(gameInfoOverride?: any) {
+    const info = gameInfoOverride ?? gameInfo
     try {
       setVoiceState('connecting')
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       setLocalStream(stream)
+
+      // Speaking detection via Web Audio API
+      try {
+        const audioContext = new AudioContext()
+        audioContextRef.current = audioContext
+        const analyser = audioContext.createAnalyser()
+        const microphone = audioContext.createMediaStreamSource(stream)
+        microphone.connect(analyser)
+        analyser.fftSize = 512
+        const dataArray = new Uint8Array(analyser.frequencyBinCount)
+        speakingIntervalRef.current = setInterval(() => {
+          analyser.getByteFrequencyData(dataArray)
+          const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length
+          const speaking = average > 15
+          setIsSpeaking(speaking)
+          if (speaking) getSocket().emit('voice:speaking', { gameId: info?.gameId, speaking: true })
+        }, 100)
+      } catch {}
 
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS })
       peerRef.current = pc
@@ -438,13 +472,17 @@ export default function GamePage() {
   }
 
   function stopVoice() {
+    if (speakingIntervalRef.current) { clearInterval(speakingIntervalRef.current); speakingIntervalRef.current = null }
+    if (audioContextRef.current) { audioContextRef.current.close().catch(() => null); audioContextRef.current = null }
     localStream?.getTracks().forEach(t => t.stop())
     peerRef.current?.close()
     peerRef.current = null
     setLocalStream(null)
     setVoiceState('idle')
+    setIsSpeaking(false)
+    setIsOpponentSpeaking(false)
     getSocket().emit('voice:leave', { gameId: gameInfo?.gameId })
-    ;['voice:initiate','voice:offer','voice:answer','voice:ice','voice:peer-left']
+    ;['voice:initiate','voice:offer','voice:answer','voice:ice','voice:peer-left','voice:speaking']
       .forEach(ev => getSocket().off(ev))
   }
 
@@ -453,6 +491,14 @@ export default function GamePage() {
       localStream.getAudioTracks().forEach(t => { t.enabled = isMuted })
       setIsMuted(m => !m)
     }
+  }
+
+  function toggleDeafen() {
+    setIsDeafened(prev => {
+      const newDeafened = !prev
+      if (remoteAudioRef.current) remoteAudioRef.current.muted = newDeafened
+      return newDeafened
+    })
   }
 
   // ── Board orientation ────────────────────────────────────────
@@ -664,6 +710,7 @@ export default function GamePage() {
         @keyframes waitPulse { 0%,100% { opacity:0.6; } 50% { opacity:1; } }
         @keyframes pulse { 0%,100% { opacity: 0.5; } 50% { opacity: 1; } }
         @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity:1; } 100% { transform: translateY(-200px) scale(1.5); opacity:0; } }
+        @keyframes speakPulse { from { box-shadow: 0 0 10px rgba(39,174,96,0.4); } to { box-shadow: 0 0 25px rgba(39,174,96,0.8); } }
         .game-over-card { animation: fadeInScale 0.3s ease both; }
         .quick-msg-btn { background:rgba(255,255,255,0.04); border:1px solid rgba(201,168,76,0.18); border-radius:8px; color:#9aa5b4; font-size:11px; padding:2px 8px; cursor:pointer; font-family:var(--font-crimson),Georgia,serif; transition:all .15s; white-space:nowrap; }
         .quick-msg-btn:hover:not(:disabled) { background:rgba(201,168,76,0.15); color:#c9a84c; border-color:rgba(201,168,76,0.4); }
@@ -1140,56 +1187,104 @@ export default function GamePage() {
             )}
 
             {activeTab === 'voice' && (
-              <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', gap:'1.25rem', padding:'1.5rem', textAlign:'center' }}>
+              <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', gap:'20px', padding:'16px', overflow:'auto' }}>
 
-                {/* Avatar circles */}
-                <div style={{ display:'flex', gap:'2rem' }}>
-                  {[
-                    { label: opponentName, init: opponentName[0]?.toUpperCase() || 'O' },
-                    { label: myName,       init: myName[0]?.toUpperCase() || 'Y' },
-                  ].map(p => (
-                    <div key={p.label} style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'0.4rem' }}>
-                      <div className={voiceState === 'connected' ? 'voice-ring' : ''} style={{ width:'52px', height:'52px', borderRadius:'50%', background:'rgba(255,255,255,0.08)', border:`1px solid ${voiceState === 'connected' ? '#c9a84c' : 'rgba(201,168,76,0.3)'}`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1.15rem', color:'#c9a84c' }}>
-                        {p.init}
-                      </div>
-                      <span style={{ fontSize:'0.72rem', color:'#9aa5b4' }}>{p.label}</span>
+                {/* Status bar */}
+                <div style={{ display:'flex', alignItems:'center', gap:'8px', fontSize:'0.8rem', marginTop:'8px',
+                  color: voiceState === 'connected' ? '#27ae60' : voiceState === 'connecting' ? '#f39c12' : voiceState === 'error' ? '#ef4444' : '#95a5a6' }}>
+                  <div style={{ width:8, height:8, borderRadius:'50%', background:'currentColor', flexShrink:0,
+                    animation: voiceState === 'connecting' ? 'pulse 1s infinite' : 'none' }} />
+                  {voiceState === 'connected'  ? 'Voice Connected' :
+                   voiceState === 'connecting' ? 'Connecting...' :
+                   voiceState === 'error'      ? 'Mic access denied' : 'Auto-connecting...'}
+                </div>
+
+                {/* Player avatars with speaking indicators */}
+                <div style={{ display:'flex', gap:'32px', alignItems:'center', justifyContent:'center', flex:1 }}>
+
+                  {/* My avatar */}
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'8px' }}>
+                    <div suppressHydrationWarning style={{
+                      width:64, height:64, borderRadius:'50%', background:'#2a3550',
+                      border:`3px solid ${isSpeaking ? '#27ae60' : '#3a4560'}`,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:'1.5rem', color:'#c9a84c', transition:'all 0.15s ease',
+                      animation: isSpeaking ? 'speakPulse 0.5s infinite alternate' : 'none',
+                    }}>
+                      {(user?.username || 'Y')[0]?.toUpperCase()}
                     </div>
-                  ))}
+                    <span style={{ fontSize:'0.75rem', color:'#8899aa' }}>You {isMuted ? '🔇' : '🎤'}</span>
+                  </div>
+
+                  <div style={{ color:'#3a4560', fontSize:'1.2rem' }}>vs</div>
+
+                  {/* Opponent avatar */}
+                  <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:'8px' }}>
+                    <div suppressHydrationWarning style={{
+                      width:64, height:64, borderRadius:'50%', background:'#2a3550',
+                      border:`3px solid ${isOpponentSpeaking ? '#27ae60' : '#3a4560'}`,
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                      fontSize:'1.5rem', color:'#c9a84c', transition:'all 0.15s ease',
+                      animation: isOpponentSpeaking ? 'speakPulse 0.5s infinite alternate' : 'none',
+                    }}>
+                      {(opponentName || 'O')[0]?.toUpperCase()}
+                    </div>
+                    <span style={{ fontSize:'0.75rem', color:'#8899aa' }}>
+                      {opponentName || 'Opponent'}{isDeafened ? ' 🔇' : ''}
+                    </span>
+                  </div>
                 </div>
 
-                {/* State text */}
-                <div style={{ fontSize:'0.82rem', color: voiceState === 'error' ? '#ef4444' : voiceState === 'connected' ? '#22c55e' : '#9aa5b4' }}>
-                  {voiceState === 'idle'       && 'Click to join voice chat'}
-                  {voiceState === 'connecting' && '⏳ Connecting...'}
-                  {voiceState === 'connected'  && '✓ Voice connected'}
-                  {voiceState === 'error'      && '❌ Microphone access denied'}
-                </div>
-
-                {/* Controls */}
-                {voiceState === 'idle' && (
-                  <button onClick={startVoice} style={{ background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.65rem 1.75rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer' }}>
-                    Join Voice 🎙️
+                {/* Controls — PUBG style */}
+                <div style={{ display:'flex', gap:'12px', justifyContent:'center', alignItems:'center' }}>
+                  <button onClick={toggleMute} title={isMuted ? 'Unmute' : 'Mute'} style={{
+                    width:52, height:52, borderRadius:'50%',
+                    background: isMuted ? '#8b1a1a' : '#1a2e4a',
+                    border:`2px solid ${isMuted ? '#c9353e' : '#3a4560'}`,
+                    color: isMuted ? '#ff6b6b' : '#c9a84c',
+                    fontSize:'1.3rem', cursor:'pointer', transition:'all 0.2s',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                  }}>
+                    {isMuted ? '🔇' : '🎤'}
                   </button>
-                )}
-
-                {voiceState === 'connecting' && (
-                  <div className="spinner" />
-                )}
-
-                {voiceState === 'connected' && (
-                  <div style={{ display:'flex', gap:'0.5rem' }}>
-                    <button onClick={toggleMute} style={{ background:'rgba(201,168,76,0.1)', color:'#c9a84c', border:'1px solid rgba(201,168,76,0.4)', borderRadius:'7px', padding:'0.5rem 1rem', fontSize:'0.85rem', cursor:'pointer' }}>
-                      {isMuted ? '🔊 Unmute' : '🔇 Mute'}
+                  <button onClick={toggleDeafen} title={isDeafened ? 'Undeafen' : 'Deafen'} style={{
+                    width:52, height:52, borderRadius:'50%',
+                    background: isDeafened ? '#8b1a1a' : '#1a2e4a',
+                    border:`2px solid ${isDeafened ? '#c9353e' : '#3a4560'}`,
+                    color: isDeafened ? '#ff6b6b' : '#c9a84c',
+                    fontSize:'1.3rem', cursor:'pointer', transition:'all 0.2s',
+                    display:'flex', alignItems:'center', justifyContent:'center',
+                  }}>
+                    {isDeafened ? '🔕' : '🔊'}
+                  </button>
+                  {voiceState === 'connected' && (
+                    <button onClick={stopVoice} title="Leave voice" style={{
+                      width:52, height:52, borderRadius:'50%',
+                      background:'#1a2e4a', border:'2px solid #3a4560',
+                      color:'#8899aa', fontSize:'1.1rem', cursor:'pointer',
+                      display:'flex', alignItems:'center', justifyContent:'center',
+                    }}>
+                      📵
                     </button>
-                    <button onClick={stopVoice} style={{ background:'rgba(239,68,68,0.1)', color:'#ef4444', border:'1px solid rgba(239,68,68,0.4)', borderRadius:'7px', padding:'0.5rem 1rem', fontSize:'0.85rem', cursor:'pointer' }}>
-                      🔴 Leave
+                  )}
+                  {voiceState === 'connecting' && <div className="spinner" style={{ width:36, height:36 }} />}
+                </div>
+
+                {/* Error state */}
+                {voiceState === 'error' && (
+                  <div style={{ textAlign:'center', color:'#ff6b6b', fontSize:'0.8rem' }}>
+                    <div>Microphone access denied</div>
+                    <div style={{ color:'#8899aa', marginTop:4 }}>Allow mic access in browser settings</div>
+                    <button onClick={() => startVoice()} style={{ marginTop:8, padding:'6px 16px', background:'#1a2e4a', border:'1px solid #c9a84c', color:'#c9a84c', borderRadius:6, cursor:'pointer', fontSize:'0.8rem' }}>
+                      Try Again
                     </button>
                   </div>
                 )}
 
-                {voiceState === 'error' && (
-                  <button onClick={startVoice} style={{ background:'rgba(201,168,76,0.1)', color:'#c9a84c', border:'1px solid rgba(201,168,76,0.4)', borderRadius:'7px', padding:'0.5rem 1rem', fontSize:'0.85rem', cursor:'pointer' }}>
-                    Try Again
+                {/* Manual join fallback if auto-connect didn't fire */}
+                {voiceState === 'idle' && (
+                  <button onClick={() => startVoice()} style={{ background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.65rem 1.75rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer' }}>
+                    Join Voice 🎙️
                   </button>
                 )}
               </div>
