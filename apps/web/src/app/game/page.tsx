@@ -126,6 +126,7 @@ export default function GamePage() {
   const [isSpeaking, setIsSpeaking]               = useState(false)
   const [isOpponentSpeaking, setIsOpponentSpeaking] = useState(false)
   const [isDeafened, setIsDeafened]               = useState(false)
+  const voiceStartedRef = useRef(false)   // guard: only auto-start once
 
   // New feature states
   const [showPromotion, setShowPromotion]   = useState(false)
@@ -248,8 +249,12 @@ export default function GamePage() {
       setChess(ch); setFen(f); setBoard(fenToBoard(f)); setCurrentTurn(ch.turn())
       if (c) setClocks(c)
       setGameWaiting(false)
-      // Auto-connect voice when game starts
-      setTimeout(() => startVoice(info), 1000)
+      // Auto-connect voice ONCE — pass `info` via closure so it's never stale
+      if (!voiceStartedRef.current) {
+        voiceStartedRef.current = true
+        const currentInfo = info
+        setTimeout(() => startVoice(currentInfo), 1500)
+      }
     })
 
     socket.on('game:move', ({ from: mFrom, to: mTo, fen: moveFen, clocks: c, san }: any) => {
@@ -397,16 +402,37 @@ export default function GamePage() {
 
   // ── Voice ────────────────────────────────────────────────────
   async function startVoice(gameInfoOverride?: any) {
+    console.log('[Voice] startVoice called, override:', gameInfoOverride, 'state:', gameInfo)
     const info = gameInfoOverride ?? gameInfo
-    if (!info?.gameId) return
+    console.log('[Voice] using info:', info)
+    if (!info?.gameId) {
+      console.log('[Voice] no gameId, aborting')
+      return
+    }
+
+    if (!navigator.mediaDevices?.getUserMedia) {
+      console.error('[Voice] getUserMedia not supported')
+      setVoiceState('error')
+      return
+    }
 
     try {
       setVoiceState('connecting')
+      console.log('[Voice] requesting microphone...')
 
-      const stream = await navigator.mediaDevices.getUserMedia({
-        audio: { echoCancellation: true, noiseSuppression: true, sampleRate: 44100 },
-        video: false,
-      })
+      let stream: MediaStream
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          audio: { echoCancellation: true, noiseSuppression: true },
+          video: false,
+        })
+        console.log('[Voice] microphone granted, tracks:', stream.getTracks().length)
+      } catch (err: any) {
+        console.error('[Voice] microphone error:', err.name, err.message)
+        setVoiceState('error')
+        showToast('Microphone access denied', 'error')
+        return
+      }
       setLocalStream(stream)
 
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 10 })
@@ -505,12 +531,12 @@ export default function GamePage() {
       })
 
       // Join voice room — server decides who initiates
+      console.log('[Voice] emitting voice:join for', info.gameId)
       socket.emit('voice:join', { gameId: info.gameId })
 
     } catch (err: any) {
-      console.error('Voice error:', err)
+      console.error('[Voice] unexpected error:', err)
       setVoiceState('error')
-      showToast('Microphone access denied', 'error')
     }
   }
 
@@ -1318,16 +1344,13 @@ export default function GamePage() {
                   <div style={{ textAlign:'center', color:'#ff6b6b', fontSize:'0.8rem' }}>
                     <div>Microphone access denied</div>
                     <div style={{ color:'#8899aa', marginTop:4 }}>Allow mic access in browser settings</div>
-                    <button onClick={() => startVoice()} style={{ marginTop:8, padding:'6px 16px', background:'#1a2e4a', border:'1px solid #c9a84c', color:'#c9a84c', borderRadius:6, cursor:'pointer', fontSize:'0.8rem' }}>
-                      Try Again
-                    </button>
                   </div>
                 )}
 
-                {/* Manual join fallback if auto-connect didn't fire */}
-                {voiceState === 'idle' && (
-                  <button onClick={() => startVoice()} style={{ background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.65rem 1.75rem', fontSize:'0.9rem', fontWeight:700, cursor:'pointer' }}>
-                    Join Voice 🎙️
+                {/* Manual join — shown when idle or after error */}
+                {(voiceState === 'idle' || voiceState === 'error') && (
+                  <button onClick={() => { voiceStartedRef.current = true; startVoice() }} style={{ padding:'10px 24px', background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:8, fontWeight:'bold', cursor:'pointer', fontSize:'0.9rem', marginTop:4 }}>
+                    🎤 Join Voice Chat
                   </button>
                 )}
               </div>
