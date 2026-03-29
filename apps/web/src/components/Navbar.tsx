@@ -6,6 +6,7 @@ import { getUser, clearAuth, isLoggedIn } from '@/lib/api'
 
 const NAV_LINKS = [
   { href: '/lobby',       label: 'Play' },
+  { href: '/play-bot',    label: '🤖 Bot' },
   { href: '/puzzles',     label: 'Puzzles' },
   { href: '/learn',       label: 'Learn', hasDropdown: true },
   { href: '/tournaments', label: 'Tournaments' },
@@ -14,6 +15,7 @@ const NAV_LINKS = [
 
 const LEARN_ITEMS = [
   { href: '/learn',     icon: '📚', label: 'Chess Academy',     desc: 'All learning tools' },
+  { href: '/play-bot',  icon: '🤖', label: 'Play vs Computer',  desc: 'Challenge Stockfish AI' },
   { href: '/openings',  icon: '📖', label: 'Opening Explorer',  desc: 'Learn 20+ openings' },
   { href: '/endgames',  icon: '♟',  label: 'Endgame Practice',  desc: '7 essential endgames' },
   { href: '/puzzles',   icon: '🧩', label: 'Tactics Puzzles',   desc: 'Sharpen your tactics' },
@@ -280,6 +282,9 @@ export default function Navbar() {
                       <span>📜</span> Game History
                     </Link>
                     <div style={{ height: '1px', background: 'rgba(201,168,76,0.1)', margin: '0.2rem 0' }} />
+                    <Link href="/play-bot" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
+                      <span>🤖</span> Play vs Computer
+                    </Link>
                     <Link href="/openings" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
                       <span>📖</span> Opening Explorer
                     </Link>

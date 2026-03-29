@@ -1,5 +1,6 @@
 import 'dotenv/config'
 import Fastify from 'fastify'
+import compress from '@fastify/compress'
 import { Server } from 'socket.io'
 import fastifyCors from '@fastify/cors'
 import fastifyJwt from '@fastify/jwt'
@@ -34,6 +35,7 @@ const io = new Server(app.server, {
 })
 
 // ── Plugins ──
+app.register(compress, { global: true })
 app.register(fastifyCors, {
   origin: true,
   credentials: true,

@@ -16,13 +16,51 @@ const crimson = Crimson_Pro({
 })
 
 export const metadata: Metadata = {
-  title: 'Chess Lobby — Play, Talk, Win',
-  description: 'Cross-platform chess lobby with voice and live chat. Play online, compete for Elo, and connect with players worldwide.',
+  title: {
+    default: 'Chess Lobby — Play Chess Online Free | Voice Chat + Real-time',
+    template: '%s | Chess Lobby',
+  },
+  description: 'Play chess online free with voice chat! Real-time multiplayer chess with friends or strangers. Elo rating, tournaments, daily puzzles, game analysis, AI bot opponent. No download required.',
+  keywords: [
+    'chess online', 'play chess free', 'chess with voice chat',
+    'multiplayer chess', 'chess game', 'chess lobby', 'online chess',
+    'chess puzzles', 'chess tournaments', 'chess analysis',
+    'play chess vs computer', 'chess AI', 'stockfish chess',
+  ],
+  authors: [{ name: 'Chess Lobby' }],
+  creator: 'Chess Lobby',
+  publisher: 'Chess Lobby',
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: 'website',
+    locale: 'en_IN',
+    url: 'https://chesslobby.in',
+    siteName: 'Chess Lobby',
+    title: 'Chess Lobby — Play Chess Online Free with Voice Chat',
+    description: 'Real-time multiplayer chess with voice chat, Elo rating, tournaments, daily puzzles, game analysis, and AI bot. Play free, no download!',
+    images: [{ url: 'https://chesslobby.in/og-image.png', width: 1200, height: 630, alt: 'Chess Lobby — Play Chess Online' }],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Chess Lobby — Play Chess Online Free',
+    description: 'Real-time multiplayer chess with voice chat! Play free at chesslobby.in',
+    images: ['https://chesslobby.in/og-image.png'],
+    creator: '@chesslobby',
+  },
+  alternates: { canonical: 'https://chesslobby.in' },
+  manifest: '/manifest.json',
+  icons: { icon: '/favicon.ico', apple: '/apple-touch-icon.png' },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${playfair.variable} ${crimson.variable}`}>
+      <head>
+        <link rel="preconnect" href="https://chess-lobby-server.onrender.com" />
+        <link rel="dns-prefetch" href="https://chess-lobby-server.onrender.com" />
+        <link rel="preconnect" href="https://cifvbhtelyqyvwtfnsur.supabase.co" />
+        <link rel="dns-prefetch" href="https://cifvbhtelyqyvwtfnsur.supabase.co" />
+      </head>
       <body
         style={{
           margin: 0,

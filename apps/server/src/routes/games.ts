@@ -10,6 +10,7 @@ export async function registerGameRoutes(fastify: FastifyInstance) {
 
   // GET /games/live — all active public games for spectator browser
   fastify.get('/live', async (_req, reply) => {
+    reply.header('Cache-Control', 'public, max-age=5')
     const games = await prisma.game.findMany({
       where: { endedAt: null, roomType: 'public' },
       include: {

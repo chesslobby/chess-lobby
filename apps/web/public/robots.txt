@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /game
+Disallow: /spectate
+Sitemap: https://chesslobby.in/sitemap.xml

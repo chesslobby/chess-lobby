@@ -22,6 +22,7 @@ export async function registerUserRoutes(fastify: FastifyInstance) {
 
   // GET /users/leaderboard
   fastify.get('/leaderboard', async (_req, reply) => {
+    reply.header('Cache-Control', 'public, max-age=30')
     const users = await prisma.user.findMany({
       where: { isGuest: false },
       orderBy: { eloRating: 'desc' },

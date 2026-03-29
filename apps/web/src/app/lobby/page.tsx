@@ -92,7 +92,7 @@ export default function LobbyPage() {
       } catch {}
     }
     fetchLiveGames()
-    const interval = setInterval(fetchLiveGames, 10000)
+    const interval = setInterval(fetchLiveGames, 15000)
     return () => clearInterval(interval)
   }, [])
 
@@ -261,6 +261,16 @@ export default function LobbyPage() {
         .quick-row::-webkit-scrollbar { height: 4px; }
         .quick-row::-webkit-scrollbar-track { background: transparent; }
         .quick-row::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
+        .bot-play-link {
+          display: block; width: 100%; margin-top: 0.5rem;
+          background: rgba(52,152,219,0.08); color: #3498db;
+          border: 1.5px solid rgba(52,152,219,0.4); border-radius: 8px;
+          padding: 0.75rem; font-size: 0.92rem; font-weight: 700;
+          font-family: var(--font-playfair),Georgia,serif;
+          text-decoration: none; text-align: center; box-sizing: border-box;
+          transition: all 0.2s;
+        }
+        .bot-play-link:hover { background: rgba(52,152,219,0.15); border-color: rgba(52,152,219,0.7); }
         .qcard {
           flex-shrink: 0;
           width: 155px;
@@ -383,6 +393,11 @@ export default function LobbyPage() {
                   Find Match
                 </button>
               )}
+
+              {/* Play vs Computer shortcut */}
+              <Link href="/play-bot" className="bot-play-link">
+                🤖 vs Computer
+              </Link>
             </div>
 
             {/* Private Room */}

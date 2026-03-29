@@ -254,11 +254,11 @@ export default function HomePage() {
           <div className="feature-grid" style={{ display:'grid', gridTemplateColumns:'repeat(3, 1fr)', gap:'0.85rem' }}>
             {[
               { icon:'🎮', title:'Play Chess',         desc:'Find opponents instantly',       href:'/lobby'       },
+              { icon:'🤖', title:'Play vs Computer',   desc:'Challenge Stockfish AI',         href:'/play-bot'    },
               { icon:'🧩', title:'Daily Puzzles',      desc:'Sharpen your tactics daily',     href:'/puzzles'     },
               { icon:'📖', title:'Opening Explorer',   desc:'Learn 20+ chess openings',       href:'/openings'    },
               { icon:'♟',  title:'Endgame Practice',   desc:'Master 7 key endgames',          href:'/endgames'    },
               { icon:'🏆', title:'Tournaments',        desc:'Compete in Arena & Swiss',        href:'/tournaments' },
-              { icon:'📊', title:'Game Analysis',      desc:'Review and improve your play',   href:'/learn'       },
             ].map((f, i) => (
               <Link key={i} href={f.href} className="feature-card">
                 <span style={{ fontSize:'1.75rem', lineHeight:1 }}>{f.icon}</span>
