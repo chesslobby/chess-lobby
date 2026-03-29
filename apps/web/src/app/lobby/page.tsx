@@ -52,6 +52,9 @@ export default function LobbyPage() {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const chatScrollRef = useRef<HTMLDivElement>(null)
 
+  // Quick Access / Puzzle teaser
+  const [puzzleStreak, setPuzzleStreak] = useState(0)
+
   // Friends online (mock)
   const [friendsOnline] = useState([
     { username: 'Magnus_C',   elo: 2200, status: 'In a game',    online: true  },
@@ -65,6 +68,10 @@ export default function LobbyPage() {
     setMounted(true)
     if (!isLoggedIn()) { window.location.href = '/login'; return }
     setUser(getUser())
+    try {
+      const s = parseInt(localStorage.getItem('puzzle_streak') || '0', 10)
+      setPuzzleStreak(isNaN(s) ? 0 : s)
+    } catch {}
     setTimeout(() => setPageLoading(false), 600)
   }, [])
 
@@ -229,6 +236,45 @@ export default function LobbyPage() {
         .chat-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        .puzzle-teaser {
+          background: rgba(201,168,76,0.05);
+          border: 1px solid rgba(201,168,76,0.25);
+          border-left: 3px solid #c9a84c;
+          border-radius: 10px;
+          padding: 0.85rem 1.1rem;
+          display: flex;
+          align-items: center;
+          gap: 0.85rem;
+          text-decoration: none;
+          transition: background 0.2s, transform 0.15s;
+          cursor: pointer;
+        }
+        .puzzle-teaser:hover { background: rgba(201,168,76,0.09); transform: translateY(-1px); }
+        .quick-row {
+          display: flex;
+          gap: 0.6rem;
+          overflow-x: auto;
+          padding-bottom: 4px;
+          scrollbar-width: thin;
+          scrollbar-color: rgba(201,168,76,0.2) transparent;
+        }
+        .quick-row::-webkit-scrollbar { height: 4px; }
+        .quick-row::-webkit-scrollbar-track { background: transparent; }
+        .quick-row::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
+        .qcard {
+          flex-shrink: 0;
+          width: 155px;
+          background: #111e35;
+          border-radius: 10px;
+          padding: 0.7rem 0.85rem;
+          display: flex;
+          align-items: center;
+          gap: 0.6rem;
+          text-decoration: none;
+          transition: background 0.2s, transform 0.15s;
+          cursor: pointer;
+        }
+        .qcard:hover { background: #172540; transform: translateY(-2px); }
         @media (max-width: 768px) {
           .lobby-main { flex-direction: column !important; padding: 1rem !important; gap: 1rem !important; }
           .lobby-left { min-width: 0 !important; }
@@ -273,6 +319,26 @@ export default function LobbyPage() {
 
           {/* LEFT COLUMN */}
           <div className="lobby-left" style={{ flex:1.5, display:'flex', flexDirection:'column', gap:'1.5rem', minWidth:0 }}>
+
+            {/* Daily Puzzle Teaser */}
+            <Link href="/puzzles" className="puzzle-teaser">
+              <span style={{ fontSize:'1.7rem', lineHeight:1, flexShrink:0 }}>🧩</span>
+              <div style={{ flex:1, minWidth:0 }}>
+                <div style={{ display:'flex', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
+                  <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', color:'#e8e0d0', fontWeight:700, fontSize:'0.92rem' }}>Daily Puzzle</span>
+                  <span style={{ fontSize:'0.72rem', color:'#9aa5b4' }}>
+                    {new Date().toLocaleDateString('en-US', { month:'short', day:'numeric' })}
+                  </span>
+                  {puzzleStreak > 0 && (
+                    <span style={{ fontSize:'0.7rem', background:'rgba(239,115,22,0.15)', border:'1px solid rgba(239,115,22,0.35)', color:'#f97316', padding:'0.05rem 0.45rem', borderRadius:999, fontWeight:600 }}>
+                      🔥 {puzzleStreak} day streak
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize:'0.78rem', color:'#4a5568', marginTop:'0.15rem' }}>⭐⭐ Medium &nbsp;·&nbsp; Sharpen your tactics</div>
+              </div>
+              <span style={{ color:'#c9a84c', fontWeight:700, fontSize:'0.85rem', whiteSpace:'nowrap', flexShrink:0 }}>Solve Now →</span>
+            </Link>
 
             {/* Quick Play */}
             <div>
@@ -390,6 +456,36 @@ export default function LobbyPage() {
                   </div>
                 ))
               )}
+            </div>
+
+            {/* Quick Access */}
+            <div>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.6rem' }}>
+                <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem' }}>
+                  <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.1rem', color:'#e8e0d0', margin:0 }}>Quick Access</h2>
+                </div>
+                <span style={{ fontSize:'0.75rem', color:'#4a5568' }}>scroll →</span>
+              </div>
+              <div className="quick-row">
+                {[
+                  { icon:'🧩', label:'Daily Puzzle', sub:"Solve today's puzzle", href:'/puzzles',      color:'#c9a84c' },
+                  { icon:'⚡', label:'Puzzle Rush',  sub:'3 min challenge',       href:'/puzzles/rush', color:'#e74c3c' },
+                  { icon:'📖', label:'Openings',     sub:'60+ openings',          href:'/openings',     color:'#3498db' },
+                  { icon:'♟️', label:'Endgames',     sub:'7 essential positions', href:'/endgames',     color:'#27ae60' },
+                  { icon:'🏆', label:'Tournaments',  sub:'Compete & win',         href:'/tournaments',  color:'#9b59b6' },
+                  { icon:'📚', label:'Learn',        sub:'Chess Academy',         href:'/learn',        color:'#f39c12' },
+                ].map(q => (
+                  <Link key={q.href} href={q.href} className="qcard" style={{ borderLeft:`3px solid ${q.color}` }}>
+                    <div style={{ width:30, height:30, borderRadius:'50%', background:`${q.color}22`, border:`1px solid ${q.color}44`, display:'flex', alignItems:'center', justifyContent:'center', fontSize:'1rem', flexShrink:0 }}>
+                      {q.icon}
+                    </div>
+                    <div style={{ minWidth:0 }}>
+                      <div style={{ color:'#e8e0d0', fontWeight:700, fontSize:'0.82rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.label}</div>
+                      <div style={{ color:'#4a5568', fontSize:'0.72rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>{q.sub}</div>
+                    </div>
+                  </Link>
+                ))}
+              </div>
             </div>
           </div>
 
