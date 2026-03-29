@@ -26,6 +26,9 @@ export function getSocket(): Socket {
     transports: ['polling', 'websocket'],  // polling first for Render compatibility
     upgrade: true,
     rememberUpgrade: false,
+    timeout: 30000,
+    pingTimeout: 30000,
+    pingInterval: 10000,
   })
 
   socket.on('connect', () => {

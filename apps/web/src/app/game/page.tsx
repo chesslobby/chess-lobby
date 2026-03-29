@@ -530,9 +530,17 @@ export default function GamePage() {
         showToast('Opponent left voice chat', 'info')
       })
 
-      // Join voice room — server decides who initiates
-      console.log('[Voice] emitting voice:join for', info.gameId)
-      socket.emit('voice:join', { gameId: info.gameId })
+      // Join voice — emit on game socket (player is already in game room)
+      if (!socket.connected) {
+        console.log('[Voice] socket not connected, waiting for reconnect...')
+        socket.once('connect', () => {
+          console.log('[Voice] socket reconnected, emitting voice:join')
+          socket.emit('voice:join', { gameId: info.gameId })
+        })
+      } else {
+        console.log('[Voice] emitting voice:join for', info.gameId)
+        socket.emit('voice:join', { gameId: info.gameId })
+      }
 
     } catch (err: any) {
       console.error('[Voice] unexpected error:', err)
