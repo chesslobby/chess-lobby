@@ -14,6 +14,8 @@ import { registerMatchmakingHandlers } from './sockets/matchmaking'
 import { registerGameHandlers } from './sockets/game'
 import { registerChatHandlers } from './sockets/chat'
 import { registerArenaHandlers } from './sockets/arena'
+import { registerVoiceHandlers } from './sockets/voice'
+import { registerSpectateHandlers } from './sockets/spectate'
 
 const app = Fastify({ logger: true })
 
@@ -63,7 +65,14 @@ io.on('connection', (socket) => {
   registerMatchmakingHandlers(io, socket)
   registerGameHandlers(io, socket)
   registerChatHandlers(io, socket)
+  registerVoiceHandlers(io, socket)
+  registerSpectateHandlers(io, socket)
   registerArenaHandlers(io, socket)
+  socket.onAny((event, ...args) => {
+    if (event.startsWith('voice:')) {
+      console.log(`[Voice DEBUG] ${socket.data.username ?? socket.data.userId} → ${event}`, JSON.stringify(args).slice(0, 120))
+    }
+  })
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`)
   })
