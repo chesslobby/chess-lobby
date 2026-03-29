@@ -7,10 +7,13 @@ import fastifyRateLimit from '@fastify/rate-limit'
 import { registerAuthRoutes } from './routes/auth'
 import { registerUserRoutes, registerFriendRoutes } from './routes/users'
 import { registerGameRoutes } from './routes/games'
+import { registerPuzzleRoutes } from './routes/puzzles'
+import { registerTournamentRoutes } from './routes/tournaments'
 import { authMiddleware } from './middleware/auth'
 import { registerMatchmakingHandlers } from './sockets/matchmaking'
 import { registerGameHandlers } from './sockets/game'
 import { registerChatHandlers } from './sockets/chat'
+import { registerArenaHandlers } from './sockets/arena'
 
 const app = Fastify({ logger: true })
 
@@ -41,10 +44,12 @@ app.register(fastifyRateLimit, {
 
 // ── Routes ──
 app.get('/health', async () => ({ status: 'ok', version: '1.0.0' }))
-app.register(registerAuthRoutes,   { prefix: '/auth' })
-app.register(registerUserRoutes,   { prefix: '/users' })
-app.register(registerFriendRoutes, { prefix: '/friends' })
-app.register(registerGameRoutes,   { prefix: '/games' })
+app.register(registerAuthRoutes,       { prefix: '/auth' })
+app.register(registerUserRoutes,       { prefix: '/users' })
+app.register(registerFriendRoutes,     { prefix: '/friends' })
+app.register(registerGameRoutes,       { prefix: '/games' })
+app.register(registerPuzzleRoutes,     { prefix: '/puzzles' })
+app.register(registerTournamentRoutes, { prefix: '/tournaments' })
 
 // ── Socket.io ──
 io.use(authMiddleware)
@@ -54,6 +59,7 @@ io.on('connection', (socket) => {
   registerMatchmakingHandlers(io, socket)
   registerGameHandlers(io, socket)
   registerChatHandlers(io, socket)
+  registerArenaHandlers(io, socket)
   socket.on('disconnect', () => {
     console.log(`Client disconnected: ${socket.id}`)
   })

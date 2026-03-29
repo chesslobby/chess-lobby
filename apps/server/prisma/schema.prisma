@@ -58,11 +58,13 @@ model User {
   notifications    Notification[]
   eloHistory       EloHistory[]
   spectating       Spectator[]
-  country          String?
-  following        Follow[] @relation("UserFollowing")
-  followers        Follow[] @relation("UserFollowers")
-  blocking         Block[]  @relation("UserBlocking")
-  blockedBy        Block[]  @relation("UserBlocked")
+  country            String?
+  following          Follow[]            @relation("UserFollowing")
+  followers          Follow[]            @relation("UserFollowers")
+  blocking           Block[]             @relation("UserBlocking")
+  blockedBy          Block[]             @relation("UserBlocked")
+  tournamentPlayers  TournamentPlayer[]
+  tournamentGames    TournamentGame[]
 }
 
 model Game {
@@ -163,4 +165,42 @@ model Block {
   blocker   User     @relation("UserBlocking", fields: [blockerId], references: [id])
   blocked   User     @relation("UserBlocked", fields: [blockedId], references: [id])
   @@unique([blockerId, blockedId])
+}
+
+model Tournament {
+  id          String             @id @default(uuid())
+  name        String
+  type        String             // 'swiss' or 'arena'
+  timeControl Int
+  status      String             @default("waiting") // waiting/active/finished
+  maxPlayers  Int                @default(16)
+  rounds      Int                @default(5)
+  startTime   DateTime
+  createdAt   DateTime           @default(now())
+  players     TournamentPlayer[]
+  games       TournamentGame[]
+}
+
+model TournamentPlayer {
+  id           String     @id @default(uuid())
+  tournamentId String
+  userId       String
+  score        Float      @default(0)
+  buchholz     Float      @default(0)
+  rank         Int?
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  user         User       @relation(fields: [userId], references: [id])
+  @@unique([tournamentId, userId])
+}
+
+model TournamentGame {
+  id           String     @id @default(uuid())
+  tournamentId String
+  round        Int
+  whiteId      String
+  blackId      String
+  result       String?    // 'white'/'black'/'draw'/'bye'
+  gameId       String?
+  tournament   Tournament @relation(fields: [tournamentId], references: [id])
+  white        User       @relation(fields: [whiteId], references: [id])
 }
