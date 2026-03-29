@@ -94,8 +94,7 @@ export default function PuzzlePage() {
   // Init chess.js
   useEffect(() => {
     try {
-      const mod = require('chess.js')
-      const C = mod.Chess || mod
+      const C = require('chess.js').Chess
       setChess(C)
       const c = new C()
       c.load(puzzle.fen)

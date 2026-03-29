@@ -71,8 +71,7 @@ export default function PuzzleRushPage() {
 
   useEffect(() => {
     try {
-      const mod = require('chess.js')
-      const C = mod.Chess || mod
+      const C = require('chess.js').Chess
       setChessClass(C)
     } catch {}
     try {

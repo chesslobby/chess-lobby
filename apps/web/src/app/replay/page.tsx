@@ -47,8 +47,8 @@ function parsePgnMoves(pgn) {
 function buildPositions(pgn) {
   const moves = parsePgnMoves(pgn)
   const positions = []
-  const Chess = require('chess.js').Chess || require('chess.js')
-  const chess = typeof Chess === 'function' ? new Chess() : new Chess.Chess()
+  const Chess = require('chess.js').Chess
+  const chess = new Chess()
 
   positions.push({ fen: chess.fen(), san: null })
 
