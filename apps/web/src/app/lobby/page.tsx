@@ -488,6 +488,7 @@ export default function LobbyPage() {
                   { icon:'📖', label:'Openings',     sub:'60+ openings',          href:'/openings',     color:'#3498db' },
                   { icon:'♟️', label:'Endgames',     sub:'7 essential positions', href:'/endgames',     color:'#27ae60' },
                   { icon:'🏆', label:'Tournaments',  sub:'Compete & win',         href:'/tournaments',  color:'#9b59b6' },
+                  { icon:'🎲', label:'Variants',     sub:'Chess960 & more',       href:'/variants',     color:'#3498db' },
                   { icon:'📚', label:'Learn',        sub:'Chess Academy',         href:'/learn',        color:'#f39c12' },
                 ].map(q => (
                   <Link key={q.href} href={q.href} className="qcard" style={{ borderLeft:`3px solid ${q.color}` }}>

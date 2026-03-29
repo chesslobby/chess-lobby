@@ -7,6 +7,7 @@ import { getUser, clearAuth, isLoggedIn } from '@/lib/api'
 const NAV_LINKS = [
   { href: '/lobby',       label: 'Play' },
   { href: '/play-bot',    label: '🤖 Bot' },
+  { href: '/variants',    label: '🎲 Variants' },
   { href: '/puzzles',     label: 'Puzzles' },
   { href: '/learn',       label: 'Learn', hasDropdown: true },
   { href: '/tournaments', label: 'Tournaments' },

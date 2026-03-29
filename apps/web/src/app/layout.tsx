@@ -49,7 +49,12 @@ export const metadata: Metadata = {
   },
   alternates: { canonical: 'https://chesslobby.in' },
   manifest: '/manifest.json',
-  icons: { icon: '/favicon.ico', apple: '/apple-touch-icon.png' },
+  themeColor: '#c9a84c',
+  icons: {
+    icon: [{ url: '/favicon.svg', type: 'image/svg+xml' }],
+    apple: '/favicon.svg',
+    shortcut: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

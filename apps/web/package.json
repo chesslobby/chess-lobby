@@ -23,7 +23,8 @@
     "next-auth": "^4.24.0",
     "clsx": "^2.1.0",
     "tailwind-merge": "^2.2.0",
-    "lucide-react": "^0.356.0"
+    "lucide-react": "^0.356.0",
+    "@supabase/supabase-js": "^2.43.0"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

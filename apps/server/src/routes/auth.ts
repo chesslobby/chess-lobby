@@ -107,6 +107,45 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
   })
 }
 
+  // ── OAuth (Google / GitHub via Supabase) ───────────────────────
+  fastify.post('/oauth', async (req, reply) => {
+    const { email, name, provider, supabaseId } = req.body as any
+
+    if (!email) return reply.status(400).send({ error: 'Email is required' })
+
+    try {
+      let user = await prisma.user.findFirst({ where: { email } })
+
+      if (!user) {
+        const base = name?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').substring(0, 20) ||
+          `Player_${Math.random().toString(36).substring(2, 7).toUpperCase()}`
+        // Ensure username is unique
+        let username = base
+        let attempt = 0
+        while (await prisma.user.findUnique({ where: { username } })) {
+          attempt++
+          username = `${base}_${attempt}`
+        }
+
+        user = await prisma.user.create({
+          data: {
+            username,
+            email,
+            passwordHash: '',
+            isGuest: false,
+          },
+        })
+      }
+
+      const token = signToken(user.id, user.username, false)
+      return reply.status(200).send({ token, user: safeUser(user) })
+    } catch (err: any) {
+      console.error('OAuth error:', err)
+      return reply.status(500).send({ error: 'OAuth login failed' })
+    }
+  })
+}
+
 function safeUser(user: any) {
   const { passwordHash: _ph, ...safe } = user
   return safe

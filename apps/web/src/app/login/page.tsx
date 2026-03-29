@@ -2,6 +2,14 @@
 import Link from 'next/link'
 import { useState } from 'react'
 import { apiPost, saveAuth } from '@/lib/api'
+import { createClient } from '@supabase/supabase-js'
+
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
+}
 
 export default function LoginPage() {
   const [email, setEmail] = useState('')
@@ -32,6 +40,32 @@ export default function LoginPage() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function handleGoogleLogin() {
+    setLoading(true)
+    setError('')
+    try {
+      const supabase = getSupabase()
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      })
+      if (oauthError) { setError('Google login failed: ' + oauthError.message); setLoading(false) }
+    } catch { setError('Google login failed'); setLoading(false) }
+  }
+
+  async function handleGithubLogin() {
+    setLoading(true)
+    setError('')
+    try {
+      const supabase = getSupabase()
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
+        provider: 'github',
+        options: { redirectTo: `${window.location.origin}/auth/callback` },
+      })
+      if (oauthError) { setError('GitHub login failed: ' + oauthError.message); setLoading(false) }
+    } catch { setError('GitHub login failed'); setLoading(false) }
   }
 
   async function handleGuest() {
@@ -188,6 +222,49 @@ export default function LoginPage() {
             <p style={{ fontSize: '0.88rem', color: '#4a5568', margin: 0 }}>
               Sign in to continue your journey
             </p>
+          </div>
+
+          {/* Social Login */}
+          {/* NOTE: To enable Google/GitHub login, go to Supabase Dashboard → Authentication → Providers
+              and enable Google (needs Google OAuth app) and GitHub (needs GitHub OAuth app).
+              Redirect URL: https://cifvbhtelyqyvwtfnsur.supabase.co/auth/v1/callback */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1rem' }}>
+            <button
+              type="button"
+              onClick={handleGoogleLogin}
+              disabled={loading}
+              style={{ width: '100%', padding: '11px', background: 'white', color: '#333', border: '2px solid #ddd', borderRadius: 8, fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', transition: 'all 0.2s' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#f5f5f5'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'white'}
+            >
+              <svg width="18" height="18" viewBox="0 0 48 48">
+                <path fill="#4285F4" d="M47.5 24.6c0-1.6-.1-3.1-.4-4.6H24v8.7h13.1c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.3 7.4-10.6 7.4-17.3z"/>
+                <path fill="#34A853" d="M24 48c6.5 0 12-2.1 16-5.8l-7.9-6c-2.1 1.4-4.9 2.3-8.1 2.3-6.2 0-11.5-4.2-13.4-9.9H2.5v6.2C6.5 42.5 14.7 48 24 48z"/>
+                <path fill="#FBBC05" d="M10.6 28.6c-.5-1.4-.7-2.9-.7-4.6s.3-3.2.7-4.6v-6.2H2.5C.9 16.6 0 20.2 0 24s.9 7.4 2.5 10.8l8.1-6.2z"/>
+                <path fill="#EA4335" d="M24 9.5c3.5 0 6.6 1.2 9.1 3.6l6.8-6.8C35.9 2.4 30.4 0 24 0 14.7 0 6.5 5.5 2.5 13.2l8.1 6.2C12.5 13.7 17.8 9.5 24 9.5z"/>
+              </svg>
+              Continue with Google
+            </button>
+            <button
+              type="button"
+              onClick={handleGithubLogin}
+              disabled={loading}
+              style={{ width: '100%', padding: '11px', background: '#24292e', color: 'white', border: 'none', borderRadius: 8, fontSize: '0.95rem', fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', transition: 'opacity 0.2s' }}
+              onMouseEnter={e => (e.currentTarget as HTMLElement).style.opacity = '0.88'}
+              onMouseLeave={e => (e.currentTarget as HTMLElement).style.opacity = '1'}
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+              </svg>
+              Continue with GitHub
+            </button>
+          </div>
+
+          {/* Divider */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: '1rem' }}>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
+            <span style={{ color: '#6b7a8d', fontSize: '0.85rem' }}>or continue with email</span>
+            <div style={{ flex: 1, height: 1, background: 'rgba(255,255,255,0.1)' }} />
           </div>
 
           {/* Form */}

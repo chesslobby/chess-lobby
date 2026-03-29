@@ -3,14 +3,95 @@
 import { useState, useEffect, useRef } from 'react'
 import Navbar from '@/components/Navbar'
 
-const DIFFICULTIES = [
-  { id: 'beginner',     label: '🟢 Beginner',     skill: 1,  depth: 1,  elo: 800,  desc: 'Just learning the rules' },
-  { id: 'easy',         label: '🟡 Easy',          skill: 5,  depth: 3,  elo: 1000, desc: 'Makes occasional mistakes' },
-  { id: 'intermediate', label: '🟠 Intermediate',  skill: 10, depth: 5,  elo: 1200, desc: 'Solid club player level' },
-  { id: 'hard',         label: '🔴 Hard',          skill: 15, depth: 8,  elo: 1500, desc: 'Strong positional play' },
-  { id: 'expert',       label: '🟣 Expert',        skill: 18, depth: 12, elo: 1800, desc: 'Very challenging' },
-  { id: 'master',       label: '⚫ Master',        skill: 20, depth: 18, elo: 2200, desc: 'Near perfect play' },
+const BOT_PERSONALITIES = [
+  {
+    id: 'rookie_rex',
+    name: 'Rookie Rex',
+    avatar: '🐣',
+    title: 'Newbie',
+    elo: 800,
+    skill: 1,
+    depth: 1,
+    personality: 'Just started learning chess. Makes random mistakes!',
+    catchphrase: 'I think I can, I think I can...',
+    color: '#27ae60',
+    style: 'Random',
+  },
+  {
+    id: 'casual_charlie',
+    name: 'Casual Charlie',
+    avatar: '😊',
+    title: 'Club Player',
+    elo: 1000,
+    skill: 5,
+    depth: 3,
+    personality: 'Plays for fun. Misses tactics occasionally.',
+    catchphrase: 'Not bad, not bad at all!',
+    color: '#3498db',
+    style: 'Casual',
+  },
+  {
+    id: 'tactical_tony',
+    name: 'Tactical Tony',
+    avatar: '🎯',
+    title: 'Intermediate',
+    elo: 1200,
+    skill: 10,
+    depth: 5,
+    personality: 'Loves tactics. Will find your hanging pieces!',
+    catchphrase: 'Did you just hang that piece?',
+    color: '#f39c12',
+    style: 'Tactical',
+  },
+  {
+    id: 'positional_petra',
+    name: 'Positional Petra',
+    avatar: '♟️',
+    title: 'Advanced',
+    elo: 1500,
+    skill: 15,
+    depth: 8,
+    personality: 'Plays slow, positional chess. Strangling you slowly.',
+    catchphrase: 'Every pawn structure tells a story.',
+    color: '#9b59b6',
+    style: 'Positional',
+  },
+  {
+    id: 'aggressive_alex',
+    name: 'Aggressive Alex',
+    avatar: '⚔️',
+    title: 'Expert',
+    elo: 1800,
+    skill: 18,
+    depth: 12,
+    personality: 'Attacks relentlessly. King safety? Never heard of it.',
+    catchphrase: 'The best defense is a good offense!',
+    color: '#e74c3c',
+    style: 'Aggressive',
+  },
+  {
+    id: 'magnus_mind',
+    name: 'Magnus Mind',
+    avatar: '👑',
+    title: 'Grandmaster',
+    elo: 2200,
+    skill: 20,
+    depth: 20,
+    personality: 'Near perfect play. Good luck, you will need it.',
+    catchphrase: 'I see 20 moves ahead. Do you?',
+    color: '#c9a84c',
+    style: 'Universal',
+  },
 ]
+
+const BOT_REACTIONS = {
+  rookie_rex:       { win: "I won?! Even I'm surprised! 😅", loss: "You beat me! I'll learn from this! 🐣", draw: "A draw! That's like winning for me! 😄" },
+  casual_charlie:   { win: "Nice game! Better luck next time 😊", loss: "Well played! You got me this time!", draw: "A fair result! Want a rematch?" },
+  tactical_tony:    { win: "Spotted every tactic! 🎯", loss: "You missed nothing! Impressive!", draw: "You held on! Good defense!" },
+  positional_petra: { win: "Slowly but surely ♟️", loss: "Your position was impeccable!", draw: "Equal game, equal result!" },
+  aggressive_alex:  { win: "ATTACK WINS AGAIN! ⚔️", loss: "Your king survived my assault!", draw: "I couldn't break through!" },
+  magnus_mind:      { win: "As expected 👑", loss: "Extraordinary! You defeated me!", draw: "You managed to hold the draw!" },
+}
 
 const PIECE_MAP = {
   wK:'♔', wQ:'♕', wR:'♖', wB:'♗', wN:'♘', wP:'♙',
@@ -28,7 +109,6 @@ function fenToBoard(fen) {
   })
 }
 
-// r=screen row, c=screen col → algebraic square
 function coordToSq(r, c, flipped) {
   if (flipped) return String.fromCharCode(97 + (7 - c)) + (r + 1)
   return String.fromCharCode(97 + c) + (8 - r)
@@ -36,7 +116,7 @@ function coordToSq(r, c, flipped) {
 
 export default function PlayBotPage() {
   const [phase, setPhase] = useState('select') // 'select' | 'game' | 'over'
-  const [difficulty, setDifficulty] = useState(DIFFICULTIES[2])
+  const [selectedBot, setSelectedBot] = useState(BOT_PERSONALITIES[2])
   const [colorChoice, setColorChoice] = useState('w') // 'w' | 'b' | 'r'
   const [playerColor, setPlayerColor] = useState('w')
 
@@ -61,7 +141,7 @@ export default function PlayBotPage() {
 
   useEffect(() => () => { workerRef.current?.terminate() }, [])
 
-  function createWorker(diff) {
+  function createWorker(bot) {
     try {
       const blob = new Blob(
         [`importScripts('https://cdnjs.cloudflare.com/ajax/libs/stockfish.js/10.0.2/stockfish.js')`],
@@ -70,7 +150,7 @@ export default function PlayBotPage() {
       const w = new Worker(URL.createObjectURL(blob))
       w.postMessage('uci')
       w.postMessage('isready')
-      w.postMessage(`setoption name Skill Level value ${diff.skill}`)
+      w.postMessage(`setoption name Skill Level value ${bot.skill}`)
       return w
     } catch (e) {
       console.warn('Stockfish worker init failed:', e)
@@ -99,16 +179,16 @@ export default function PlayBotPage() {
     setGamePgn('')
 
     workerRef.current?.terminate()
-    workerRef.current = createWorker(difficulty)
+    workerRef.current = createWorker(selectedBot)
 
     setPhase('game')
 
     if (color === 'b') {
-      setTimeout(() => triggerBotMove(chess, difficulty, color), 700)
+      setTimeout(() => triggerBotMove(chess, selectedBot, color), 700)
     }
   }
 
-  function triggerBotMove(chess, diff, pColor) {
+  function triggerBotMove(chess, bot, pColor) {
     const w = workerRef.current
     if (!w) return
     setBotThinking(true)
@@ -132,7 +212,7 @@ export default function PlayBotPage() {
       }, 300)
     }
     w.postMessage(`position fen ${chess.fen()}`)
-    w.postMessage(`go depth ${diff.depth} movetime 800`)
+    w.postMessage(`go depth ${bot.depth} movetime 800`)
   }
 
   function handleSquareClick(sq) {
@@ -176,7 +256,7 @@ export default function PlayBotPage() {
       setMoveList(h => [...h, mv.san])
       setSelected(null); setLegalTargets([]); setPromoState(null)
       if (checkGameOver(chess, playerColor)) return
-      setTimeout(() => triggerBotMove(chess, difficulty, playerColor), 200)
+      setTimeout(() => triggerBotMove(chess, selectedBot, playerColor), 200)
     } catch {
       setSelected(null); setLegalTargets([])
     }
@@ -248,42 +328,54 @@ export default function PlayBotPage() {
     return (
       <>
         <style>{`
-          .diff-card { background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:12px; padding:1rem 1.1rem; cursor:pointer; transition:all 0.15s; display:flex; align-items:center; gap:0.75rem; }
-          .diff-card:hover { background:rgba(255,255,255,0.07); transform:translateY(-1px); }
-          .diff-card.sel { border-color:#c9a84c; background:rgba(201,168,76,0.08); }
+          .bot-card { background:rgba(255,255,255,0.04); border:1.5px solid rgba(255,255,255,0.1); border-radius:14px; padding:1.1rem; cursor:pointer; transition:all 0.15s; }
+          .bot-card:hover { background:rgba(255,255,255,0.07); transform:translateY(-2px); box-shadow:0 6px 24px rgba(0,0,0,0.3); }
+          .bot-card.sel { border-color:#c9a84c; background:rgba(201,168,76,0.08); }
           .color-tab { flex:1; border-radius:8px; padding:0.7rem; cursor:pointer; transition:all 0.15s; background:rgba(255,255,255,0.04); border:2px solid transparent; font-family:var(--font-playfair),Georgia,serif; font-size:0.95rem; font-weight:700; color:#9aa5b4; }
           .color-tab.sel { border-color:#c9a84c; background:rgba(201,168,76,0.1); color:#c9a84c; }
           .color-tab:hover { background:rgba(255,255,255,0.07); }
+          .style-badge { font-size:0.65rem; padding:0.12rem 0.4rem; border-radius:999px; font-weight:700; letter-spacing:0.04em; }
         `}</style>
         <div style={{ background:'#0a1628', minHeight:'100vh', fontFamily:'var(--font-crimson),Georgia,serif' }}>
           <Navbar />
-          <div style={{ maxWidth:'660px', margin:'0 auto', padding:'2.5rem 1rem' }}>
+          <div style={{ maxWidth:'720px', margin:'0 auto', padding:'2.5rem 1rem' }}>
             <div style={{ textAlign:'center', marginBottom:'2.5rem' }}>
-              <div style={{ fontSize:'4rem', lineHeight:1, marginBottom:'0.75rem' }}>🤖</div>
+              <div style={{ fontSize:'4rem', lineHeight:1, marginBottom:'0.75rem' }}>♟</div>
               <h1 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'2.2rem', color:'#e8e0d0', margin:'0 0 0.5rem', fontWeight:700 }}>
-                Play vs Computer
+                Choose Your Opponent
               </h1>
               <p style={{ color:'#4a5568', margin:0, fontSize:'0.9rem' }}>
-                Stockfish engine — runs entirely in your browser, no server needed
+                Powered by Stockfish — runs entirely in your browser
               </p>
             </div>
 
-            {/* Difficulty grid */}
+            {/* Bot personality grid */}
             <div style={{ marginBottom:'2rem' }}>
               <div style={{ fontFamily:'var(--font-playfair)', color:'#9aa5b4', fontSize:'0.78rem', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'0.75rem' }}>
-                Choose Difficulty
+                Select Opponent
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.6rem' }}>
-                {DIFFICULTIES.map(d => (
-                  <div key={d.id} className={`diff-card${difficulty.id === d.id ? ' sel' : ''}`} onClick={() => setDifficulty(d)}>
-                    <div style={{ flex:1 }}>
-                      <div style={{ fontSize:'0.9rem', fontWeight:700, color:'#e8e0d0', marginBottom:'0.15rem' }}>{d.label}</div>
-                      <div style={{ fontSize:'0.74rem', color:'#4a5568' }}>{d.desc}</div>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+                {BOT_PERSONALITIES.map(bot => (
+                  <div key={bot.id}
+                    className={`bot-card${selectedBot.id === bot.id ? ' sel' : ''}`}
+                    onClick={() => setSelectedBot(bot)}
+                    style={selectedBot.id === bot.id ? { borderLeftColor: bot.color, borderLeftWidth: '3px' } : {}}
+                  >
+                    <div style={{ display:'flex', alignItems:'center', gap:'0.75rem', marginBottom:'0.5rem' }}>
+                      <span style={{ fontSize:'2.5rem', lineHeight:1 }}>{bot.avatar}</span>
+                      <div style={{ flex:1, minWidth:0 }}>
+                        <div style={{ display:'flex', alignItems:'center', gap:'0.4rem', flexWrap:'wrap' }}>
+                          <span style={{ fontWeight:700, color:'#e8e0d0', fontSize:'0.95rem' }}>{bot.name}</span>
+                          <span className="style-badge" style={{ background:`${bot.color}22`, color:bot.color, border:`1px solid ${bot.color}44` }}>{bot.style}</span>
+                        </div>
+                        <div style={{ display:'flex', alignItems:'center', gap:'0.4rem', marginTop:'0.1rem' }}>
+                          <span style={{ fontSize:'0.72rem', color:'#9aa5b4', background:'rgba(255,255,255,0.06)', padding:'0.1rem 0.4rem', borderRadius:4 }}>{bot.title}</span>
+                          <span style={{ fontSize:'0.72rem', color:'#c9a84c', fontWeight:700 }}>{bot.elo} Elo</span>
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ textAlign:'right', flexShrink:0 }}>
-                      <div style={{ fontSize:'0.82rem', color:'#c9a84c', fontWeight:700 }}>{d.elo}</div>
-                      <div style={{ fontSize:'0.65rem', color:'#374151' }}>Elo</div>
-                    </div>
+                    <p style={{ fontSize:'0.76rem', color:'#4a5568', margin:'0 0 0.4rem', fontStyle:'italic', lineHeight:1.4 }}>{bot.personality}</p>
+                    <p style={{ fontSize:'0.74rem', color:'#6b7a8d', margin:0, fontStyle:'italic' }}>"{bot.catchphrase}"</p>
                   </div>
                 ))}
               </div>
@@ -307,7 +399,7 @@ export default function PlayBotPage() {
               onMouseEnter={e => { e.currentTarget.style.filter='brightness(1.1)'; e.currentTarget.style.transform='translateY(-2px)' }}
               onMouseLeave={e => { e.currentTarget.style.filter=''; e.currentTarget.style.transform='' }}
             >
-              ▶ Start Game
+              ▶ Play vs {selectedBot.name}
             </button>
           </div>
         </div>
@@ -326,6 +418,10 @@ export default function PlayBotPage() {
     else rows[rows.length - 1].b = m
     return rows
   }, [])
+
+  const reaction = gameResult ? BOT_REACTIONS[selectedBot.id]?.[
+    gameResult.winner === 'player' ? 'loss' : gameResult.winner === 'bot' ? 'win' : 'draw'
+  ] : null
 
   return (
     <>
@@ -357,18 +453,21 @@ export default function PlayBotPage() {
           {/* Left panel — bot/player info */}
           <div className="side-l" style={{ width:'155px', display:'flex', flexDirection:'column', gap:'0.7rem', paddingTop:'0.5rem' }}>
             {/* Bot card */}
-            <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:'12px', padding:'1rem', textAlign:'center' }}>
-              <div style={{ fontSize:'2.2rem', lineHeight:1, marginBottom:'0.4rem' }}>🤖</div>
-              <div style={{ fontFamily:'var(--font-playfair)', color:'#e8e0d0', fontWeight:700, fontSize:'0.9rem', marginBottom:'0.2rem' }}>Stockfish</div>
-              <div style={{ fontSize:'0.72rem', color:'#c9a84c', marginBottom:'0.15rem' }}>{difficulty.elo} Elo</div>
-              <div style={{ fontSize:'0.65rem', color:'#4a5568', marginBottom:'0.6rem' }}>{difficulty.label}</div>
+            <div style={{ background:'rgba(255,255,255,0.04)', border:`1px solid ${selectedBot.color}44`, borderRadius:'12px', padding:'1rem', textAlign:'center' }}>
+              <div style={{ fontSize:'2.5rem', lineHeight:1, marginBottom:'0.4rem' }}>{selectedBot.avatar}</div>
+              <div style={{ fontFamily:'var(--font-playfair)', color:'#e8e0d0', fontWeight:700, fontSize:'0.9rem', marginBottom:'0.15rem' }}>{selectedBot.name}</div>
+              <div style={{ fontSize:'0.7rem', color:selectedBot.color, background:`${selectedBot.color}22`, border:`1px solid ${selectedBot.color}44`, padding:'0.1rem 0.4rem', borderRadius:999, display:'inline-block', marginBottom:'0.25rem' }}>{selectedBot.style}</div>
+              <div style={{ fontSize:'0.72rem', color:'#c9a84c', marginBottom:'0.15rem' }}>{selectedBot.elo} Elo</div>
               {botThinking ? (
-                <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'3px' }}>
-                  <span style={{ fontSize:'0.68rem', color:'#9aa5b4', marginRight:'2px' }}>Thinking</span>
-                  <span className="thinking-dot"/><span className="thinking-dot"/><span className="thinking-dot"/>
+                <div style={{ marginTop:'0.4rem' }}>
+                  <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'3px', marginBottom:'0.3rem' }}>
+                    <span style={{ fontSize:'0.68rem', color:'#9aa5b4', marginRight:'2px' }}>Thinking</span>
+                    <span className="thinking-dot"/><span className="thinking-dot"/><span className="thinking-dot"/>
+                  </div>
+                  <div style={{ fontSize:'0.65rem', color:'#4a5568', fontStyle:'italic', padding:'0 0.3rem', lineHeight:1.4 }}>"{selectedBot.catchphrase}"</div>
                 </div>
               ) : (
-                <div style={{ fontSize:'0.7rem', color: currentTurn !== playerColor ? '#22c55e' : '#4a5568' }}>
+                <div style={{ fontSize:'0.7rem', color: currentTurn !== playerColor ? '#22c55e' : '#4a5568', marginTop:'0.3rem' }}>
                   {currentTurn !== playerColor ? '● Turn' : '○ Waiting'}
                 </div>
               )}
@@ -488,15 +587,20 @@ export default function PlayBotPage() {
       {/* Game over overlay */}
       {phase === 'over' && gameResult && (
         <div style={{ position:'fixed', inset:0, background:'rgba(5,12,28,0.88)', zIndex:100, display:'flex', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ background:'#0d1f3c', border:'1.5px solid rgba(201,168,76,0.4)', borderRadius:'16px', padding:'2rem 2.5rem', textAlign:'center', maxWidth:'360px', width:'90%', boxShadow:'0 20px 60px rgba(0,0,0,0.7)' }}>
-            <div style={{ fontSize:'3.5rem', marginBottom:'0.75rem', lineHeight:1 }}>
-              {gameResult.winner === 'player' ? '🏆' : gameResult.winner === 'bot' ? '🤖' : '🤝'}
+          <div style={{ background:'#0d1f3c', border:'1.5px solid rgba(201,168,76,0.4)', borderRadius:'16px', padding:'2rem 2.5rem', textAlign:'center', maxWidth:'380px', width:'90%', boxShadow:'0 20px 60px rgba(0,0,0,0.7)' }}>
+            <div style={{ fontSize:'3.5rem', marginBottom:'0.5rem', lineHeight:1 }}>
+              {gameResult.winner === 'player' ? '🏆' : gameResult.winner === 'bot' ? selectedBot.avatar : '🤝'}
             </div>
-            <h2 style={{ fontFamily:'var(--font-playfair)', color:'#e8e0d0', fontSize:'1.6rem', margin:'0 0 0.4rem', fontWeight:700 }}>
-              {gameResult.winner === 'player' ? 'You Win!' : gameResult.winner === 'bot' ? 'Bot Wins!' : "It's a Draw!"}
+            <h2 style={{ fontFamily:'var(--font-playfair)', color:'#e8e0d0', fontSize:'1.6rem', margin:'0 0 0.3rem', fontWeight:700 }}>
+              {gameResult.winner === 'player' ? 'You Win!' : gameResult.winner === 'bot' ? `${selectedBot.name} Wins!` : "It's a Draw!"}
             </h2>
             <p style={{ color:'#9aa5b4', fontSize:'0.9rem', margin:'0 0 0.25rem' }}>{gameResult.reason}</p>
-            <p style={{ color:'#4a5568', fontSize:'0.78rem', margin:'0 0 1.75rem' }}>{moveList.length} moves · {difficulty.label}</p>
+            {reaction && (
+              <p style={{ color:selectedBot.color, fontSize:'0.82rem', fontStyle:'italic', margin:'0.3rem 0 0.25rem', padding:'0.5rem', background:`${selectedBot.color}11`, border:`1px solid ${selectedBot.color}33`, borderRadius:8 }}>
+                {selectedBot.name}: &ldquo;{reaction}&rdquo;
+              </p>
+            )}
+            <p style={{ color:'#4a5568', fontSize:'0.78rem', margin:'0.25rem 0 1.75rem' }}>{moveList.length} moves · vs {selectedBot.name}</p>
             <div style={{ display:'flex', flexDirection:'column', gap:'0.65rem' }}>
               <button onClick={startGame}
                 style={{ background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:'8px', padding:'0.85rem', fontSize:'0.95rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair)' }}>
@@ -504,7 +608,7 @@ export default function PlayBotPage() {
               </button>
               <button onClick={resetToSelect}
                 style={{ background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.12)', color:'#9aa5b4', borderRadius:'8px', padding:'0.75rem', fontSize:'0.88rem', cursor:'pointer', fontFamily:'var(--font-crimson)' }}>
-                ⚙ Change Difficulty
+                ⚙ Choose Different Opponent
               </button>
               {gamePgn && (
                 <button onClick={() => { try { localStorage.setItem('bot_game_pgn', gamePgn) } catch {} window.alert('PGN saved to local storage!') }}
