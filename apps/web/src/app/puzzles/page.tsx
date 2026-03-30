@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import AdUnit from '@/components/AdUnit'
 
 const API = process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000'
 
@@ -385,6 +386,9 @@ export default function PuzzlePage() {
 
             {/* Sidebar */}
             <div className="puzzle-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '.85rem' }}>
+              {/* Ad — top of sidebar, above puzzle info */}
+              <AdUnit slot="3333333333" format="rectangle" style={{ minHeight: 90 }} />
+
               <div style={{ ...cardStyle, padding: '1rem 1.1rem' }}>
                 <div style={{ fontSize: '.82rem', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: '.4rem', fontWeight: 700 }}>Puzzle #{puzzle.id}</div>
                 <div style={{ color: '#e8e0d0', fontSize: '.92rem', lineHeight: 1.45 }}>{puzzle.description}</div>

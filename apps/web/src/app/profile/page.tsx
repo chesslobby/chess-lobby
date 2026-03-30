@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import AdUnit from '@/components/AdUnit'
 import { getUser, clearAuth } from '@/lib/api'
 import { showToast } from '@/components/Toast'
 
@@ -489,6 +490,11 @@ export default function ProfilePage() {
                 )
               })}
             </div>
+          </div>
+
+          {/* Ad — between Achievements and Recent Games, desktop only */}
+          <div className="desktop-only">
+            <AdUnit slot="4444444444" format="rectangle" style={{ margin: '0 0 1.5rem', minHeight: 250 }} />
           </div>
 
           {/* ── RECENT GAMES ── */}

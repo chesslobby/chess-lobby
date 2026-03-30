@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import AdUnit from '@/components/AdUnit'
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 const PIECE_UNICODE = {
@@ -305,6 +306,9 @@ export default function EndgamesPage() {
               </div>
             </div>
           )}
+
+          {/* Ad — bottom of endgames page */}
+          <AdUnit slot="6666666666" format="horizontal" style={{ marginTop: 24, minHeight: 90 }} />
         </div>
       </div>
     </>

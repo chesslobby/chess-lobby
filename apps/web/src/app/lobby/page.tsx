@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { getUser, clearAuth, isLoggedIn } from '@/lib/api'
 import { getSocket } from '@/lib/socket'
+import AdUnit from '@/components/AdUnit'
 
 const TIME_CONTROLS = [
   { emoji: '⚡', time: '1 min',  mode: 'Bullet', seconds: 60  },
@@ -499,6 +500,9 @@ export default function LobbyPage() {
               )}
             </div>
 
+            {/* Ad — between Live Games and Quick Access */}
+            <AdUnit slot="1234567890" format="horizontal" style={{ margin: '4px 0 12px', minHeight: 90 }} />
+
             {/* Quick Access */}
             <div>
               <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.6rem' }}>
@@ -630,6 +634,11 @@ export default function LobbyPage() {
                 <input className={`input-field${chatFocused ? ' focused' : ''}`} type="text" placeholder="Say something..." value={chatInput} onChange={e => setChatInput(e.target.value)} onFocus={() => setChatFocused(true)} onBlur={() => { setChatFocused(false); setTimeout(() => setShowEmojiPicker(false), 200) }} onKeyDown={e => { if (e.key === 'Enter') handleSendChat() }} style={{ flex:1, padding:'0.5rem 0.75rem', fontSize:'0.88rem' }} />
                 <button onClick={handleSendChat} style={{ background:'#c9a84c', color:'#0a1628', border:'none', padding:'0.5rem 0.9rem', borderRadius:'6px', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'0.88rem', flexShrink:0 }}>Send</button>
               </div>
+            </div>
+
+            {/* Ad — below chat, desktop only */}
+            <div className="desktop-only">
+              <AdUnit slot="0987654321" format="rectangle" style={{ marginTop: 16, minHeight: 250 }} />
             </div>
           </div>
         </div>

@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import AdUnit from '@/components/AdUnit'
 
 const TOTAL_ENDGAMES = 7
 
@@ -193,6 +194,9 @@ export default function LearnPage() {
               </div>
             ))}
           </div>
+
+          {/* Ad — bottom of learn page */}
+          <AdUnit slot="2222222222" format="horizontal" style={{ marginTop: 32, marginBottom: 8, minHeight: 90 }} />
 
           {/* Footer tip */}
           <div style={{ marginTop: '2.5rem', textAlign: 'center', color: '#4a5568', fontSize: '0.8rem' }}>

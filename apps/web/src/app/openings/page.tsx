@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import AdUnit from '@/components/AdUnit'
 
 const FILES = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
 const PIECE_UNICODE = {
@@ -397,6 +398,9 @@ export default function OpeningsPage() {
                 </Link>
               </div>
             )}
+
+          {/* Ad — bottom of openings page */}
+          <AdUnit slot="5555555555" format="horizontal" style={{ marginTop: 24, minHeight: 90 }} />
           </div>
         </div>
       </div>

@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import Navbar from '@/components/Navbar'
+import AdUnit from '@/components/AdUnit'
 
 const TABS = ['Global', 'This Week', 'Friends']
 
@@ -178,6 +179,9 @@ export default function LeaderboardPage() {
               })()}
             </div>
           )}
+
+          {/* Ad — between podium and table */}
+          <AdUnit slot="1111111111" format="horizontal" style={{ margin: '4px 0 20px', minHeight: 90 }} />
 
           {/* Search */}
           <div style={{ marginBottom: '1.25rem' }}>

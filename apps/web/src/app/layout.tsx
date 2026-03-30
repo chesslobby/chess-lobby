@@ -1,5 +1,6 @@
 import type { Metadata } from 'next'
 import { Playfair_Display, Crimson_Pro } from 'next/font/google'
+import Script from 'next/script'
 import ToastContainer from '@/components/Toast'
 
 const playfair = Playfair_Display({
@@ -77,6 +78,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       >
         {children}
         <ToastContainer />
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
+          crossOrigin="anonymous"
+          strategy="lazyOnload"
+        />
       </body>
     </html>
   )
