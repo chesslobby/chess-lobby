@@ -55,6 +55,9 @@ export default function LobbyPage() {
   // Quick Access / Puzzle teaser
   const [puzzleStreak, setPuzzleStreak] = useState(0)
 
+  // Admin announcement banner
+  const [announcement, setAnnouncement] = useState('')
+
   // Friends online (mock)
   const [friendsOnline] = useState([
     { username: 'Magnus_C',   elo: 2200, status: 'In a game',    online: true  },
@@ -134,6 +137,11 @@ export default function LobbyPage() {
       setOnlineCount(count)
     })
 
+    socket.on('admin:announcement', ({ message }: any) => {
+      setAnnouncement(message)
+      setTimeout(() => setAnnouncement(''), 30000)
+    })
+
     socket.on('lobby:chat:receive', ({ senderName, message }: any) => {
       const now = new Date()
       const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
@@ -141,7 +149,7 @@ export default function LobbyPage() {
     })
 
     return () => {
-      ['match:found','queue:waiting','room:created','room:joined','room:error','lobby:online-count','lobby:chat:receive']
+      ['match:found','queue:waiting','room:created','room:joined','room:error','lobby:online-count','lobby:chat:receive','admin:announcement']
         .forEach(ev => socket.off(ev))
     }
   }, [])
@@ -332,6 +340,14 @@ export default function LobbyPage() {
             >Log out</button>
           </div>
         </div>
+
+        {/* Admin Announcement Banner */}
+        {announcement && (
+          <div style={{ background:'linear-gradient(90deg,#c9a84c,#e8c86d)', color:'#0a1628', padding:'10px 1.5rem', fontWeight:'bold', display:'flex', justifyContent:'space-between', alignItems:'center', fontSize:'0.92rem', flexShrink:0 }}>
+            <span>📢 {announcement}</span>
+            <button onClick={() => setAnnouncement('')} style={{ background:'none', border:'none', cursor:'pointer', color:'#0a1628', fontSize:'1.2rem', lineHeight:1, padding:'0 0.25rem' }}>✕</button>
+          </div>
+        )}
 
         {/* MAIN */}
         <div className="lobby-main lobby-grid" style={{ flex:1, display:'flex', gap:'1.5rem', padding:'1.5rem', maxWidth:'1400px', width:'100%', margin:'0 auto', boxSizing:'border-box' }}>

@@ -10,6 +10,7 @@ import { registerUserRoutes, registerFriendRoutes } from './routes/users'
 import { registerGameRoutes } from './routes/games'
 import { registerPuzzleRoutes } from './routes/puzzles'
 import { registerTournamentRoutes } from './routes/tournaments'
+import { registerAdminRoutes } from './routes/admin'
 import { authMiddleware } from './middleware/auth'
 import { registerMatchmakingHandlers } from './sockets/matchmaking'
 import { registerGameHandlers } from './sockets/game'
@@ -40,7 +41,7 @@ app.register(fastifyCors, {
   origin: true,
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'x-admin-key'],
 })
 app.register(fastifyJwt, {
   secret: process.env.JWT_SECRET || 'change-me-in-production',
@@ -58,6 +59,7 @@ app.register(registerFriendRoutes,     { prefix: '/friends' })
 app.register(registerGameRoutes,       { prefix: '/games' })
 app.register(registerPuzzleRoutes,     { prefix: '/puzzles' })
 app.register(registerTournamentRoutes, { prefix: '/tournaments' })
+app.register(registerAdminRoutes,      { prefix: '/admin' })
 
 // ── Socket.io ──
 io.use(authMiddleware)
