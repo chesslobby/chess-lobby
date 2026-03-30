@@ -28,17 +28,12 @@ export function registerChatHandlers(io: Server, socket: Socket) {
     const sanitized = sanitize(message)
     const msgType = type || 'text'
 
-    const saved = await prisma.chatMessage.create({
-      data: {
-        gameId,
-        senderId: userId,
-        message: sanitized,
-        type: msgType,
-      },
-    }).catch(() => null)
+    // Fire-and-forget — don't block socket relay on the DB write
+    prisma.chatMessage.create({
+      data: { gameId, senderId: userId, message: sanitized, type: msgType },
+    }).catch(err => console.error('[Chat] save failed:', err.message))
 
     const payload = {
-      id: saved?.id,
       senderId: userId,
       senderName: username,
       message: sanitized,
@@ -75,14 +70,9 @@ export function registerChatHandlers(io: Server, socket: Socket) {
 
     const sanitized = sanitize(message)
 
-    await prisma.chatMessage.create({
-      data: {
-        senderId: userId,
-        message: sanitized,
-        type: 'text',
-        isLobby: true,
-      },
-    }).catch(() => null)
+    prisma.chatMessage.create({
+      data: { senderId: userId, message: sanitized, type: 'text', isLobby: true },
+    }).catch(err => console.error('[Chat] lobby save failed:', err.message))
 
     io.to(LOBBY_ROOM).emit('lobby:chat:receive', {
       senderId: userId,

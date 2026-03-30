@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-//  Prisma Client — Singleton + keepalive for Supabase free tier
+//  Prisma Client — Singleton
 // ─────────────────────────────────────────────────────────────
 
 import { PrismaClient } from '@prisma/client'
@@ -23,10 +23,5 @@ export const prisma =
 if (process.env.NODE_ENV !== 'production') {
   global.__prisma = prisma
 }
-
-// Ping every 30 s so Supabase free tier doesn't pause the connection
-setInterval(async () => {
-  try {
-    await prisma.$queryRaw`SELECT 1`
-  } catch {}
-}, 30_000)
+// Note: keepalive SELECT 1 removed — it consumed one of the pooled connections
+// every 30 s, exhausting the pool. Supabase pgBouncer keeps connections alive.

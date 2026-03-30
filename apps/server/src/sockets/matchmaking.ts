@@ -117,9 +117,17 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
 
         socket.emit('match:found', myPayload)
         io.to(opponent.socketId).emit('match:found', opponentPayload)
-      } catch (err) {
-        console.error('[Match] createGame failed:', err)
+      } catch (err: any) {
+        console.error('[Match] createGame failed:', err.message ?? err)
+        // Notify both players so neither is stuck on a spinner
         socket.emit('queue:error', { message: 'Failed to create game, please try again' })
+        io.to(opponent.socketId).emit('queue:error', { message: 'Failed to create game, please try again' })
+        // Clean up any pending entries that may have been set optimistically
+        pendingGames.delete(userId)
+        pendingGames.delete(opponent.userId)
+        // Re-add both to queue so they can be matched again
+        queues[tc].push(entry)
+        queues[tc].push(opponent)
       }
     } else {
       // No opponent found — add to queue and wait
@@ -220,9 +228,12 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
 
       io.to(room.hostSocketId).emit('room:joined', hostPayload)
       socket.emit('room:joined', guestPayload)
-    } catch (err) {
-      console.error('[Room] createGame failed:', err)
+    } catch (err: any) {
+      console.error('[Room] createGame failed:', err.message ?? err)
       socket.emit('room:error', { message: 'Failed to create game, please try again' })
+      io.to(room.hostSocketId).emit('room:error', { message: 'Failed to create game, please try again' })
+      pendingGames.delete(userId)
+      pendingGames.delete(room.hostUserId)
     }
   })
 
