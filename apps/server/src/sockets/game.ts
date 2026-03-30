@@ -61,8 +61,9 @@ export function registerGameHandlers(io: Server, socket: Socket) {
 
   // ── Player ready (both players have loaded) ────────────────
   socket.on('game:ready', async ({ gameId }: { gameId: string }) => {
-    // JOIN the socket.io room — players navigate to /game with a new socket connection
-    socket.join(gameId)
+    // JOIN the socket.io room — await so the join completes before we check room size
+    await socket.join(gameId)
+    console.log(`[Room] ${socket.data.username} joined room ${gameId} | room size: ${io.sockets.adapter.rooms.get(gameId)?.size ?? 0}`)
 
     // Initialize the set if it doesn't exist
     if (!readyPlayers.has(gameId)) {
@@ -118,16 +119,19 @@ export function registerGameHandlers(io: Server, socket: Socket) {
     try {
       const move = game.chess.move({ from, to, promotion: promotion ?? 'q' })
 
-      // Broadcast move to everyone in the room (opponent + spectators)
+      const moveFen = game.chess.fen()
+
+      // Broadcast move to everyone in the room (opponent + spectators + sender for FEN/clock sync)
       io.to(gameId).emit('game:move', {
         from: move.from,
         to: move.to,
         san: move.san,
-        promotion: move.promotion,
-        fen: game.chess.fen(),
+        promotion: move.promotion || null,
+        fen: moveFen,
         turn: game.chess.turn(),
         clocks: game.clocks,
       })
+      console.log(`[Move] Broadcast to room ${gameId}: ${move.san} | room size: ${io.sockets.adapter.rooms.get(gameId)?.size ?? 0}`)
 
       game.pgn.push(move.san)
 

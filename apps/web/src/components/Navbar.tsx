@@ -33,6 +33,7 @@ export default function Navbar() {
   const [notifOpen, setNotifOpen]           = useState(false)
   const [adminAnnouncement, setAdminAnnouncement] = useState('')
   const [mounted, setMounted]               = useState(false)
+  const [isMobile, setIsMobile]             = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const learnRef    = useRef<HTMLDivElement>(null)
   const notifRef    = useRef<HTMLDivElement>(null)
@@ -48,12 +49,18 @@ export default function Navbar() {
     setMounted(true)
     refreshAuth()
 
+    // Mobile breakpoint detection
+    const checkMobile = () => setIsMobile(window.innerWidth < 768)
+    checkMobile()
+    window.addEventListener('resize', checkMobile)
+
     // Re-check auth when storage changes (other tabs) or when window regains focus
     function onStorage() { refreshAuth() }
     function onFocus() { refreshAuth() }
     window.addEventListener('storage', onStorage)
     window.addEventListener('focus', onFocus)
     return () => {
+      window.removeEventListener('resize', checkMobile)
       window.removeEventListener('storage', onStorage)
       window.removeEventListener('focus', onFocus)
     }
@@ -303,18 +310,20 @@ export default function Navbar() {
                   >
                     {(user.username?.[0] || 'G').toUpperCase()}
                   </div>
-                  <div className="nav-user-text" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1px' }}>
-                    <div style={{ fontSize: '0.82rem', color: '#e8e0d0', fontFamily: 'var(--font-crimson), Georgia, serif', lineHeight: 1 }}>
-                      {user.username}
+                  {!isMobile && (
+                    <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                      <div style={{ fontSize: '0.82rem', color: '#e8e0d0', fontFamily: 'var(--font-crimson), Georgia, serif', lineHeight: 1 }}>
+                        {user.username}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
+                        <span style={{ fontSize: '0.68rem', color: '#c9a84c', fontFamily: 'monospace' }}>♟ {user.eloRating || 1200}</span>
+                        {badge && (
+                          <span style={{ fontSize: '0.6rem', color: badge.color, background: badge.color + '22', border: `1px solid ${badge.color}44`, padding: '0 0.3rem', borderRadius: '3px', lineHeight: '1.4' }}>{badge.label}</span>
+                        )}
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}>
-                      <span style={{ fontSize: '0.68rem', color: '#c9a84c', fontFamily: 'monospace' }}>♟ {user.eloRating || 1200}</span>
-                      {badge && (
-                        <span style={{ fontSize: '0.6rem', color: badge.color, background: badge.color + '22', border: `1px solid ${badge.color}44`, padding: '0 0.3rem', borderRadius: '3px', lineHeight: '1.4' }}>{badge.label}</span>
-                      )}
-                    </div>
-                  </div>
-                  <span className="nav-user-text" style={{ color: '#4a5568', fontSize: '0.6rem', marginLeft: '0.1rem', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
+                  )}
+                  {!isMobile && <span style={{ color: '#4a5568', fontSize: '0.6rem', marginLeft: '0.1rem', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }}>▼</span>}
                 </button>
 
                 {dropdownOpen && (
@@ -366,9 +375,9 @@ export default function Navbar() {
               </>
             )}
 
-            {/* Notification bell */}
-            {mounted && loggedIn && (
-              <div ref={notifRef} className="nav-notif" style={{ position: 'relative' }}>
+            {/* Notification bell — desktop only */}
+            {mounted && loggedIn && !isMobile && (
+              <div ref={notifRef} style={{ position: 'relative' }}>
                 <button
                   onClick={() => setNotifOpen(p => !p)}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.3rem', position: 'relative', color: '#9aa5b4', fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}
