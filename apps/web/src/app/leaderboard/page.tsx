@@ -99,6 +99,13 @@ export default function LeaderboardPage() {
         .podium-card:nth-child(3) { animation-delay: 0.2s; }
         .lb-row { transition: background 0.15s; }
         .lb-row:hover { background: rgba(201,168,76,0.07) !important; }
+        @media (max-width: 640px) {
+          .lb-col-games { display: none !important; }
+          .lb-player-name { max-width: 110px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; }
+          .lb-tabs { width: 100% !important; }
+          .lb-tabs button { flex: 1; padding: 0.5rem 0.5rem !important; font-size: 0.82rem !important; }
+          .podium-wrap { transform: scale(0.85); transform-origin: center top; }
+        }
       `}</style>
 
       <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson), Georgia, serif' }}>
@@ -115,7 +122,7 @@ export default function LeaderboardPage() {
           </div>
 
           {/* Tabs */}
-          <div style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '4px', marginBottom: '1.25rem', width: 'fit-content' }}>
+          <div className="lb-tabs" style={{ display: 'flex', background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(201,168,76,0.2)', borderRadius: '10px', padding: '4px', marginBottom: '1.25rem', width: 'fit-content' }}>
             {TABS.map(tab => (
               <button key={tab} onClick={() => setActiveTab(tab)} style={{ padding: '0.5rem 1.25rem', borderRadius: '7px', cursor: 'pointer', fontSize: '0.9rem', border: 'none', transition: 'all 0.2s', background: activeTab === tab ? '#c9a84c' : 'transparent', color: activeTab === tab ? '#0a1628' : '#4a5568', fontWeight: activeTab === tab ? 700 : 400, fontFamily: 'var(--font-crimson), Georgia, serif' }}>
                 {tab}
@@ -125,7 +132,7 @@ export default function LeaderboardPage() {
 
           {/* Podium — top 3 visualization */}
           {!loading && players.length >= 3 && !searchQuery && activeTab === 'Global' && (
-            <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '0.75rem', marginBottom: '2rem', padding: '1rem 0' }}>
+            <div className="podium-wrap" style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'center', gap: '0.75rem', marginBottom: '2rem', padding: '1rem 0' }}>
               {/* 2nd place */}
               {(() => {
                 const p = players[1]
@@ -189,9 +196,15 @@ export default function LeaderboardPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ background: 'rgba(255,255,255,0.03)', borderBottom: '1px solid rgba(201,168,76,0.15)' }}>
-                    {['Rank', 'Player', 'Elo', 'Games', 'Win%'].map(h => (
-                      <th key={h} style={{ padding: '0.75rem 1.25rem', textAlign: 'left', fontSize: '0.75rem', color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
-                        {h}
+                    {[
+                      { label: 'Rank', cls: '' },
+                      { label: 'Player', cls: '' },
+                      { label: 'Elo', cls: '' },
+                      { label: 'Games', cls: 'lb-col-games' },
+                      { label: 'Win%', cls: '' },
+                    ].map(h => (
+                      <th key={h.label} className={h.cls} style={{ padding: '0.75rem 1.25rem', textAlign: 'left', fontSize: '0.75rem', color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>
+                        {h.label}
                       </th>
                     ))}
                   </tr>
@@ -213,13 +226,13 @@ export default function LeaderboardPage() {
                               {player.name[0]}
                             </div>
                             {player.country && <span style={{ fontSize: '1rem', lineHeight: 1 }}>{getFlag(player.country)}</span>}
-                            <Link href={`/profile/${player.name}`} style={{ color: '#e8e0d0', fontSize: '0.92rem', textDecoration: 'none' }}>{player.name}</Link>
+                            <Link href={`/profile/${player.name}`} className="lb-player-name" style={{ color: '#e8e0d0', fontSize: '0.92rem', textDecoration: 'none' }}>{player.name}</Link>
                           </div>
                         </td>
                         <td style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.03)', fontWeight: 700, color: '#c9a84c', fontSize: '0.95rem', fontFamily: 'monospace', verticalAlign: 'middle' }}>
                           {player.elo}
                         </td>
-                        <td style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.03)', color: '#9aa5b4', fontSize: '0.88rem', verticalAlign: 'middle' }}>
+                        <td className="lb-col-games" style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.03)', color: '#9aa5b4', fontSize: '0.88rem', verticalAlign: 'middle' }}>
                           {player.games}
                         </td>
                         <td style={{ padding: '0.85rem 1.25rem', borderBottom: '1px solid rgba(255,255,255,0.03)', verticalAlign: 'middle' }}>

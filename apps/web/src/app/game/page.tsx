@@ -849,6 +849,25 @@ export default function GamePage() {
         }
         .mobile-overlay { display:none; }
         .mobile-bar { display:none; }
+        @media (max-width: 640px) {
+          .game-left-panel { display: none !important; }
+          .game-right-panel { display: none !important; }
+          .game-board-wrap { width: 100vw !important; height: 100vw !important; max-width: 100vw !important; flex-shrink: 0 !important; }
+          .game-layout { flex-direction: column !important; padding: 0 !important; gap: 0 !important; }
+          .game-top-bar { padding: 8px 12px !important; font-size: 0.82rem !important; }
+          .game-clock { font-size: 1.1rem !important; }
+          .board-controls { flex-wrap: wrap !important; gap: 6px !important; padding: 8px !important; }
+          .board-controls button { min-height: 40px; font-size: 0.8rem !important; }
+          .mobile-tab-bar { display: flex !important; }
+        }
+        .mobile-tab-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: #111e35; border-top: 1px solid rgba(201,168,76,0.2); z-index: 100; justify-content: stretch; }
+        .mobile-tab-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: #6b7a8d; font-size: 0.7rem; gap: 2px; cursor: pointer; transition: color 0.2s; }
+        .mobile-tab-btn.active { color: #c9a84c; }
+        .mobile-tab-btn span:first-child { font-size: 1.1rem; }
+        .mobile-drawer { display: none; position: fixed; bottom: 56px; left: 0; right: 0; height: 50vh; background: #0d1f3c; border-top: 1px solid rgba(201,168,76,0.2); z-index: 99; flex-direction: column; overflow: hidden; }
+        .mobile-drawer.open { display: flex; }
+        .mobile-drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
+        .mobile-drawer-body { flex: 1; overflow-y: auto; padding: 8px; }
       `}</style>
 
       <div suppressHydrationWarning style={{ display:'flex', flexDirection:'column', height:'100dvh', background:'#0a1628', overflow:'hidden', fontFamily:'var(--font-crimson),Georgia,serif', position:'relative' }}>
@@ -1027,10 +1046,10 @@ export default function GamePage() {
         </div>
 
         {/* ── Main area ─────────────────────────────────── */}
-        <div style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
+        <div className="game-layout" style={{ flex:1, display:'flex', overflow:'hidden', minHeight:0 }}>
 
           {/* Left panel */}
-          <div className={`left-panel${isMobile && showLeftPanel ? ' mobile-show' : ''}`} style={{ width:'clamp(180px,15vw,220px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderRight:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
+          <div className={`left-panel game-left-panel${isMobile && showLeftPanel ? ' mobile-show' : ''}`} style={{ width:'clamp(180px,15vw,220px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderRight:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
 
             {/* Opponent */}
             <div style={{ padding:'0.75rem', borderBottom:'1px solid rgba(201,168,76,0.1)', background: currentTurn !== myColor ? 'rgba(201,168,76,0.04)' : 'transparent', flexShrink:0, position:'relative' }}>
@@ -1129,7 +1148,7 @@ export default function GamePage() {
             </div>
 
             {/* Board */}
-            <div className="board-size" style={{ position:'relative', width:'min(calc(100dvh - 80px), calc(100vw - 500px))', maxWidth:'520px', aspectRatio:'1', flexShrink:0 }}>
+            <div className="board-size game-board-wrap" style={{ position:'relative', width:'min(calc(100dvh - 80px), calc(100vw - 500px))', maxWidth:'520px', aspectRatio:'1', flexShrink:0 }}>
               <div style={{ position:'relative', paddingLeft:'1.4rem', paddingBottom:'1.4rem', width:'100%', height:'100%', boxSizing:'border-box' }}>
 
                 {rankLabels.map((rank, ri) => (
@@ -1231,7 +1250,7 @@ export default function GamePage() {
           </div>
 
           {/* Right panel — chat/voice */}
-          <div className={`right-panel${isMobile && showChatDrawer ? ' mobile-show' : ''}`} style={{ width:'clamp(260px,20vw,320px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderLeft:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
+          <div className={`right-panel game-right-panel${isMobile && showChatDrawer ? ' mobile-show' : ''}`} style={{ width:'clamp(260px,20vw,320px)', flexShrink:0, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.02)', borderLeft:'1px solid rgba(201,168,76,0.15)', overflow:'hidden' }}>
 
             <div style={{ display:'flex', borderBottom:'1px solid rgba(201,168,76,0.15)', flexShrink:0 }}>
               {(['chat','voice'] as const).map(tab => (

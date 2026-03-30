@@ -335,6 +335,17 @@ export default function PlayBotPage() {
           .color-tab.sel { border-color:#c9a84c; background:rgba(201,168,76,0.1); color:#c9a84c; }
           .color-tab:hover { background:rgba(255,255,255,0.07); }
           .style-badge { font-size:0.65rem; padding:0.12rem 0.4rem; border-radius:999px; font-weight:700; letter-spacing:0.04em; }
+          @media (max-width: 640px) {
+            .bot-grid { grid-template-columns: 1fr !important; }
+            .bot-card { flex-direction: row !important; align-items: center !important; gap: 12px !important; padding: 12px !important; }
+            .bot-card-avatar { font-size: 2rem !important; width: 48px !important; flex-shrink: 0 !important; }
+            .bot-card-info { flex: 1 !important; text-align: left !important; }
+            .color-buttons { flex-direction: column !important; }
+            .color-btn { width: 100% !important; min-height: 48px !important; }
+            .start-btn { width: 100% !important; min-height: 52px !important; }
+            .game-board-area { flex-direction: column !important; }
+            .play-bot-panels { display: none !important; }
+          }
         `}</style>
         <div style={{ background:'#0a1628', minHeight:'100vh', fontFamily:'var(--font-crimson),Georgia,serif' }}>
           <Navbar />
@@ -354,7 +365,7 @@ export default function PlayBotPage() {
               <div style={{ fontFamily:'var(--font-playfair)', color:'#9aa5b4', fontSize:'0.78rem', textTransform:'uppercase', letterSpacing:'0.1em', marginBottom:'0.75rem' }}>
                 Select Opponent
               </div>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
+              <div className="bot-grid" style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.75rem' }}>
                 {BOT_PERSONALITIES.map(bot => (
                   <div key={bot.id}
                     className={`bot-card${selectedBot.id === bot.id ? ' sel' : ''}`}

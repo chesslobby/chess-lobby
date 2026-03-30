@@ -149,3 +149,48 @@ button:active {
 .fade-in-up {
   animation: fadeInUp 0.5s ease both;
 }
+
+/* ── Prevent horizontal overflow ────────────────────────────── */
+html, body {
+  overflow-x: hidden;
+  max-width: 100vw;
+}
+
+/* ── Mobile responsive utilities ────────────────────────────── */
+.mobile-only  { display: none; }
+.desktop-only { display: block; }
+
+@media (max-width: 768px) {
+  .mobile-only        { display: block; }
+  .desktop-only       { display: none !important; }
+  .mobile-full-width  { width: 100% !important; }
+  .mobile-stack       { flex-direction: column !important; }
+  .mobile-padding     { padding: 12px !important; }
+  .mobile-text-sm     { font-size: 0.85rem !important; }
+  .mobile-hidden      { display: none !important; }
+
+  /* Larger tap targets */
+  button, a {
+    min-height: 44px;
+  }
+
+  /* Prevent iOS zoom on input focus */
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+
+  /* Smooth momentum scrolling */
+  * {
+    -webkit-overflow-scrolling: touch;
+  }
+}
+
+/* ── Horizontal scroll without scrollbar ────────────────────── */
+.scroll-x {
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.scroll-x::-webkit-scrollbar {
+  display: none;
+}

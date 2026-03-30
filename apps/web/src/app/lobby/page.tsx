@@ -291,6 +291,15 @@ export default function LobbyPage() {
           .lobby-right { min-height: 320px !important; }
           .time-grid { grid-template-columns: 1fr 1fr !important; }
         }
+        @media (max-width: 640px) {
+          .lobby-grid { grid-template-columns: 1fr !important; }
+          .quick-access-row { display: flex !important; gap: 10px !important; overflow-x: auto !important; padding-bottom: 8px !important; scrollbar-width: none !important; flex-wrap: nowrap !important; }
+          .quick-access-row::-webkit-scrollbar { display: none !important; }
+          .quick-access-card { min-width: 110px !important; flex-shrink: 0 !important; }
+          .lobby-chat { max-height: 300px !important; }
+          .live-games-list { overflow-x: auto !important; }
+          .friends-list { display: flex !important; overflow-x: auto !important; gap: 12px !important; padding-bottom: 6px !important; }
+        }
       `}</style>
 
       <div style={{ display:'flex', flexDirection:'column', backgroundColor:'#0a1628', minHeight:'100vh', fontFamily:'var(--font-crimson),Georgia,serif' }}>
@@ -325,7 +334,7 @@ export default function LobbyPage() {
         </div>
 
         {/* MAIN */}
-        <div className="lobby-main" style={{ flex:1, display:'flex', gap:'1.5rem', padding:'1.5rem', maxWidth:'1400px', width:'100%', margin:'0 auto', boxSizing:'border-box' }}>
+        <div className="lobby-main lobby-grid" style={{ flex:1, display:'flex', gap:'1.5rem', padding:'1.5rem', maxWidth:'1400px', width:'100%', margin:'0 auto', boxSizing:'border-box' }}>
 
           {/* LEFT COLUMN */}
           <div className="lobby-left" style={{ flex:1.5, display:'flex', flexDirection:'column', gap:'1.5rem', minWidth:0 }}>
@@ -481,7 +490,7 @@ export default function LobbyPage() {
                 </div>
                 <span style={{ fontSize:'0.75rem', color:'#4a5568' }}>scroll →</span>
               </div>
-              <div className="quick-row">
+              <div className="quick-row quick-access-row">
                 {[
                   { icon:'🧩', label:'Daily Puzzle', sub:"Solve today's puzzle", href:'/puzzles',      color:'#c9a84c' },
                   { icon:'⚡', label:'Puzzle Rush',  sub:'3 min challenge',       href:'/puzzles/rush', color:'#e74c3c' },
@@ -548,7 +557,7 @@ export default function LobbyPage() {
             </div>
 
             {/* Lobby Chat */}
-            <div style={{ flex:1, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden', minHeight:'360px', position:'relative' }}>
+            <div className="lobby-chat" style={{ flex:1, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden', minHeight:'360px', position:'relative' }}>
               <div style={{ padding:'0.9rem 1.1rem', borderBottom:'1px solid rgba(201,168,76,0.15)', display:'flex', alignItems:'center', gap:'0.5rem', flexShrink:0 }}>
                 <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', color:'#e8e0d0', fontSize:'1rem', fontWeight:700 }}>Lobby Chat</span>
                 <span style={{ color:'#22c55e', fontSize:'0.7rem' }}>●</span>

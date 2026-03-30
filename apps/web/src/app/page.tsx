@@ -162,12 +162,15 @@ export default function HomePage() {
         }
 
         @media (max-width: 640px) {
-          .hero-title { font-size: clamp(2rem,10vw,2.8rem) !important; }
-          .hero-crown { font-size: 4rem !important; }
+          .hero-title { font-size: clamp(2rem,10vw,2.5rem) !important; }
+          .hero-crown { font-size: 3rem !important; }
           .cta-buttons { flex-direction: column !important; align-items: stretch !important; }
-          .cta-buttons a { text-align: center !important; }
+          .cta-buttons a { text-align: center !important; padding: 0.9rem 1rem !important; }
           .how-cards { flex-direction: column !important; }
           .stats-row { gap: 0 !important; }
+          .feature-grid { grid-template-columns: 1fr !important; }
+          .pill { font-size: 0.78rem !important; padding: 0.3rem 0.7rem !important; }
+          .btn-gold, .btn-outline { padding: 0.9rem 1.5rem !important; font-size: 0.95rem !important; }
         }
       `}</style>
 

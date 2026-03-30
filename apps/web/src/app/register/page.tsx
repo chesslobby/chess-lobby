@@ -143,6 +143,13 @@ export default function RegisterPage() {
           90%       { transform: translateX(4px); }
         }
         .shake { animation: shake 0.5s ease; }
+        @media (max-width: 640px) {
+          .chess-bg { background-image: none !important; }
+          .login-card { padding: 1.75rem 1.25rem !important; border-radius: 12px !important; }
+          .input-field { padding: 14px 16px !important; font-size: 16px !important; min-height: 48px; }
+          .btn-gold { padding: 1rem !important; min-height: 52px; font-size: 1rem !important; }
+          .eye-btn { min-height: unset; }
+        }
       `}</style>
 
       <div

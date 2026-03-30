@@ -339,6 +339,13 @@ export default function ProfilePage() {
         .ach-card{transition:transform .15s,box-shadow .15s;cursor:default;}
         .ach-card:hover{transform:translateY(-2px);box-shadow:0 6px 20px rgba(0,0,0,.3);}
         .avatar-wrap:hover .avatar-overlay{opacity:1!important;}
+        @media (max-width: 640px) {
+          .stats-grid { grid-template-columns: 1fr 1fr !important; }
+          .achievements-grid { grid-template-columns: 1fr 1fr !important; }
+          .profile-header { flex-direction: column !important; align-items: center !important; text-align: center !important; }
+          .elo-chart { height: 180px !important; }
+          .game-history-table .col-hide-mobile { display: none !important; }
+        }
       `}</style>
 
       <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
@@ -346,7 +353,7 @@ export default function ProfilePage() {
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1rem' }}>
 
           {/* ── PROFILE HEADER ── */}
-          <div style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1.5rem', padding: '1.5rem' }}>
+          <div className="profile-header" style={{ ...cardStyle, display: 'flex', alignItems: 'center', gap: '1.5rem', marginBottom: '1.5rem', padding: '1.5rem' }}>
             {/* Avatar with upload */}
             <div
               className="avatar-wrap"
@@ -425,7 +432,7 @@ export default function ProfilePage() {
           )}
 
           {/* ── STATS ROW ── */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+          <div className="stats-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
             {STATS.map(s => (
               <div key={s.label} style={{ ...cardStyle, padding: '1.25rem', textAlign: 'center' }}>
                 <div style={{ fontSize: '2rem', fontWeight: 700, color: s.color, fontFamily: 'var(--font-playfair),Georgia,serif', lineHeight: 1.1 }}>
@@ -452,7 +459,7 @@ export default function ProfilePage() {
               <span style={{ fontFamily: 'var(--font-playfair),Georgia,serif', fontSize: '1.05rem', color: '#e8e0d0', fontWeight: 700 }}>Achievements</span>
               <span style={{ fontSize: '.82rem', color: '#4a5568' }}>{unlocked.length} / {ACHIEVEMENTS.length} unlocked</span>
             </div>
-            <div style={{ padding: '1rem 1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: '.75rem' }}>
+            <div className="achievements-grid" style={{ padding: '1rem 1.25rem', display: 'grid', gridTemplateColumns: 'repeat(auto-fill,minmax(160px,1fr))', gap: '.75rem' }}>
               {ACHIEVEMENTS.map(a => {
                 const done = a.cond(user)
                 return (

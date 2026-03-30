@@ -261,6 +261,14 @@ export default function PuzzlePage() {
           100% { transform: scale(1); opacity: 1; }
         }
         .solved-banner { animation: solvedPop 0.5s cubic-bezier(.34,1.56,.64,1) both; }
+        @media (max-width: 640px) {
+          .puzzle-layout { flex-direction: column !important; }
+          .puzzle-board { width: 100vw !important; height: 100vw !important; max-width: 100vw !important; flex-shrink: 0 !important; }
+          .puzzle-sidebar { width: 100% !important; }
+          .puzzle-actions { flex-direction: column !important; }
+          .puzzle-actions button { width: 100% !important; min-height: 48px !important; }
+          .puzzle-streak { font-size: 0.8rem !important; }
+        }
       `}</style>
 
       <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
@@ -295,10 +303,10 @@ export default function PuzzlePage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '1.25rem', alignItems: 'start' }}>
+          <div className="puzzle-layout" style={{ display: 'grid', gridTemplateColumns: '1fr 260px', gap: '1.25rem', alignItems: 'start' }}>
 
             {/* Board */}
-            <div>
+            <div className="puzzle-board">
               <div style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,.5)' }}>
                 {displayBoard && displayBoard.map((rank, ri) =>
                   rank.map((piece, fi) => {
@@ -376,7 +384,7 @@ export default function PuzzlePage() {
             </div>
 
             {/* Sidebar */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '.85rem' }}>
+            <div className="puzzle-sidebar" style={{ display: 'flex', flexDirection: 'column', gap: '.85rem' }}>
               <div style={{ ...cardStyle, padding: '1rem 1.1rem' }}>
                 <div style={{ fontSize: '.82rem', color: '#c9a84c', textTransform: 'uppercase', letterSpacing: '.07em', marginBottom: '.4rem', fontWeight: 700 }}>Puzzle #{puzzle.id}</div>
                 <div style={{ color: '#e8e0d0', fontSize: '.92rem', lineHeight: 1.45 }}>{puzzle.description}</div>

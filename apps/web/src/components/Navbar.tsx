@@ -133,29 +133,43 @@ export default function Navbar() {
         .nav-play-btn:hover { filter: brightness(1.1); transform: translateY(-1px); }
         .mobile-menu { display: none; }
         @keyframes slideIn {
-          from { opacity: 0; transform: translateX(20px); }
+          from { opacity: 0; transform: translateX(100%); }
           to   { opacity: 1; transform: translateX(0); }
         }
         .mobile-menu.open {
           display: flex; flex-direction: column;
-          position: fixed; top: 56px; right: 0; bottom: 0; width: 260px;
-          background: rgba(8,18,34,0.98);
+          position: fixed; top: 0; right: 0; bottom: 0; width: 80%; max-width: 320px;
+          background: #0a1628;
           border-left: 1px solid rgba(201,168,76,0.2);
-          padding: 1.5rem 1rem; gap: 0.25rem;
-          z-index: 200; backdrop-filter: blur(20px);
-          animation: slideIn 0.2s ease;
+          padding: 0; gap: 0;
+          z-index: 400; backdrop-filter: blur(20px);
+          animation: slideIn 0.25s ease;
           overflow-y: auto;
+        }
+        .mobile-menu-header {
+          display: flex; align-items: center; justify-content: space-between;
+          padding: 1rem 1.25rem;
+          border-bottom: 1px solid rgba(201,168,76,0.15);
+          flex-shrink: 0;
+        }
+        .mobile-menu-body {
+          flex: 1; overflow-y: auto; padding: 0.75rem 0.75rem;
         }
         .mobile-link {
           color: #9aa5b4; text-decoration: none;
-          padding: 0.7rem 0.75rem; border-radius: 8px;
-          font-size: 0.95rem; font-family: var(--font-crimson), Georgia, serif;
-          transition: all 0.15s; display: block;
+          padding: 0.9rem 1rem; border-radius: 8px;
+          font-size: 1.1rem; font-family: var(--font-crimson), Georgia, serif;
+          transition: all 0.15s; display: block; min-height: 48px;
+          display: flex; align-items: center;
         }
         .mobile-link:hover, .mobile-link.active { background: rgba(201,168,76,0.1); color: #c9a84c; }
         .mobile-sublabel {
-          font-size: 0.72rem; color: #4a5568; padding: 0.4rem 0.75rem 0.2rem;
+          font-size: 0.72rem; color: #4a5568; padding: 0.75rem 1rem 0.25rem;
           text-transform: uppercase; letter-spacing: 0.08em;
+        }
+        .mobile-menu-footer {
+          border-top: 1px solid rgba(201,168,76,0.15);
+          padding: 1rem 1.25rem; flex-shrink: 0;
         }
         .hamburger { display: none; }
         @media (max-width: 760px) {
@@ -339,51 +353,80 @@ export default function Navbar() {
 
         {/* Mobile menu */}
         <div className={`mobile-menu${mobileOpen ? ' open' : ''}`}>
-          {NAV_LINKS.filter(l => !l.hasDropdown).map(({ href, label }) => {
-            const active = pathname === href || pathname.startsWith(href + '/')
-            return (
-              <Link key={href} href={href} className={`mobile-link${active ? ' active' : ''}`} onClick={() => setMobileOpen(false)}>
-                {label}
-              </Link>
-            )
-          })}
-          {/* Learn section in mobile */}
-          <button
-            className="mobile-link"
-            style={{ background: 'none', border: 'none', cursor: 'pointer', textAlign: 'left', display: 'flex', alignItems: 'center', justifyContent: 'space-between', color: pathname.startsWith('/learn') || pathname.startsWith('/openings') || pathname.startsWith('/endgames') || pathname.startsWith('/puzzles') ? '#c9a84c' : '#9aa5b4' }}
-            onClick={() => setMobileLearnOpen(p => !p)}
-          >
-            <span>Learn</span>
-            <span style={{ fontSize: '0.65rem', color: '#4a5568' }}>{mobilelearnOpen ? '▲' : '▼'}</span>
-          </button>
-          {mobilelearnOpen && (
-            <div style={{ paddingLeft: '0.75rem' }}>
-              {LEARN_ITEMS.map(item => (
-                <Link key={item.href} href={item.href} className="mobile-link" style={{ fontSize: '0.88rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={() => setMobileOpen(false)}>
-                  <span>{item.icon}</span> {item.label}
-                </Link>
-              ))}
+          {/* Header with logo + close */}
+          <div className="mobile-menu-header">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <span style={{ fontSize: '1.3rem', color: '#c9a84c' }}>♛</span>
+              <span style={{ fontFamily: 'var(--font-playfair), Georgia, serif', color: '#c9a84c', fontSize: '1rem' }}>Chess Lobby</span>
             </div>
-          )}
-          <div style={{ height: '1px', background: 'rgba(201,168,76,0.15)', margin: '0.5rem 0' }} />
-          {loggedIn ? (
-            <>
-              <Link href="/profile" className="mobile-link" onClick={() => setMobileOpen(false)}>Profile</Link>
-              <button className="mobile-link" style={{ color: '#ef4444', textAlign: 'left', cursor: 'pointer', border: 'none', background: 'none' }} onClick={() => { clearAuth(); window.location.href = '/' }}>
-                Sign Out
-              </button>
-            </>
-          ) : (
-            <>
-              <Link href="/lobby" className="mobile-link" style={{ color: '#c9a84c', fontWeight: 700 }} onClick={() => setMobileOpen(false)}>Play Now</Link>
-              <Link href="/login" className="mobile-link" onClick={() => setMobileOpen(false)}>Sign In</Link>
-            </>
+            <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', color: '#c9a84c', fontSize: '1.4rem', cursor: 'pointer', padding: '0.25rem', lineHeight: 1 }}>✕</button>
+          </div>
+
+          {/* Nav links */}
+          <div className="mobile-menu-body">
+            {NAV_LINKS.filter(l => !l.hasDropdown).map(({ href, label }) => {
+              const active = pathname === href || pathname.startsWith(href + '/')
+              return (
+                <Link key={href} href={href} className={`mobile-link${active ? ' active' : ''}`} onClick={() => setMobileOpen(false)}>
+                  {label}
+                </Link>
+              )
+            })}
+            {/* Learn section */}
+            <button
+              className="mobile-link"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', width: '100%', justifyContent: 'space-between', color: pathname.startsWith('/learn') || pathname.startsWith('/openings') || pathname.startsWith('/endgames') || pathname.startsWith('/puzzles') ? '#c9a84c' : '#9aa5b4', fontSize: '1.1rem' }}
+              onClick={() => setMobileLearnOpen(p => !p)}
+            >
+              <span>Learn</span>
+              <span style={{ fontSize: '0.65rem', color: '#4a5568' }}>{mobilelearnOpen ? '▲' : '▼'}</span>
+            </button>
+            {mobilelearnOpen && (
+              <div style={{ paddingLeft: '0.75rem' }}>
+                {LEARN_ITEMS.map(item => (
+                  <Link key={item.href} href={item.href} className="mobile-link" style={{ fontSize: '1rem', gap: '0.5rem' }} onClick={() => setMobileOpen(false)}>
+                    <span>{item.icon}</span> {item.label}
+                  </Link>
+                ))}
+              </div>
+            )}
+
+            <div style={{ height: '1px', background: 'rgba(201,168,76,0.15)', margin: '0.75rem 0' }} />
+
+            {loggedIn ? (
+              <>
+                <Link href="/profile" className="mobile-link" onClick={() => setMobileOpen(false)}>👤 Profile</Link>
+                <button className="mobile-link" style={{ color: '#ef4444', cursor: 'pointer', border: 'none', background: 'none', width: '100%', fontSize: '1.1rem' }} onClick={() => { clearAuth(); window.location.href = '/' }}>
+                  🚪 Sign Out
+                </button>
+              </>
+            ) : (
+              <>
+                <Link href="/lobby" className="mobile-link" style={{ color: '#c9a84c', fontWeight: 700 }} onClick={() => setMobileOpen(false)}>▶ Play Now</Link>
+                <Link href="/login" className="mobile-link" onClick={() => setMobileOpen(false)}>Sign In</Link>
+              </>
+            )}
+          </div>
+
+          {/* Footer with user info */}
+          {loggedIn && user && (
+            <div className="mobile-menu-footer">
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                <div style={{ width: '36px', height: '36px', borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1.5px solid rgba(201,168,76,0.4)', color: '#c9a84c', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '1rem', flexShrink: 0 }}>
+                  {(user.username?.[0] || 'G').toUpperCase()}
+                </div>
+                <div>
+                  <div style={{ color: '#e8e0d0', fontSize: '0.9rem', fontWeight: 600 }}>{user.username}</div>
+                  <div style={{ color: '#c9a84c', fontSize: '0.78rem', fontFamily: 'monospace' }}>♟ {user.eloRating || 1200}</div>
+                </div>
+              </div>
+            </div>
           )}
         </div>
 
-        {/* Mobile overlay */}
+        {/* Mobile backdrop overlay */}
         {mobileOpen && (
-          <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 150, background: 'rgba(0,0,0,0.4)' }} />
+          <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 250, background: 'rgba(0,0,0,0.6)' }} />
         )}
       </div>
     </>
