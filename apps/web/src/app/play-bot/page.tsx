@@ -133,6 +133,7 @@ export default function PlayBotPage() {
   const [promoState, setPromoState] = useState(null)
   const [gameResult, setGameResult] = useState(null)
   const [gamePgn, setGamePgn] = useState('')
+  const [currentEval, setCurrentEval] = useState(0)
   const moveListRef = useRef(null)
 
   useEffect(() => {
@@ -195,6 +196,22 @@ export default function PlayBotPage() {
     let responded = false
     w.onmessage = (e) => {
       const msg = e.data
+      if (typeof msg === 'string') {
+        if (msg.includes('score cp')) {
+          const m = msg.match(/score cp (-?\d+)/)
+          if (m) {
+            const raw = parseInt(m[1]) / 100
+            setCurrentEval(playerColor === 'w' ? raw : -raw)
+          }
+        }
+        if (msg.includes('score mate')) {
+          const m = msg.match(/score mate (-?\d+)/)
+          if (m) {
+            const raw = parseInt(m[1]) > 0 ? 99 : -99
+            setCurrentEval(playerColor === 'w' ? raw : -raw)
+          }
+        }
+      }
       if (!msg.startsWith('bestmove') || responded) return
       responded = true
       const uci = msg.split(' ')[1]
@@ -454,6 +471,7 @@ export default function PlayBotPage() {
           .bsq{width:44px!important;height:44px!important;}
           .piece-g{font-size:1.55rem!important;}
           .side-l,.side-r{display:none!important;}
+          .bot-eval-bar{display:none!important;}
         }
       `}</style>
 
@@ -498,7 +516,22 @@ export default function PlayBotPage() {
             </div>
           </div>
 
-          {/* Board */}
+          {/* Board + eval bar */}
+          <div style={{ display:'flex', gap:'6px', alignItems:'stretch', flexShrink:0 }}>
+          {/* Eval bar */}
+          <div className="bot-eval-bar" style={{ width:20, background:'#1a1a2e', borderRadius:4, overflow:'hidden', position:'relative', minHeight:480, flexShrink:0 }}>
+            {(() => {
+              const clamped = Math.max(-10, Math.min(10, currentEval))
+              const whitePct = Math.round((clamped + 10) / 20 * 100)
+              return (<>
+                <div style={{ position:'absolute', top:0, left:0, right:0, height:`${100-whitePct}%`, background:'#3a3a4a', transition:'height 0.5s ease' }} />
+                <div style={{ position:'absolute', bottom:0, left:0, right:0, height:`${whitePct}%`, background:'#f0d9b5', transition:'height 0.5s ease' }} />
+                <div style={{ position:'absolute', bottom: whitePct>50?4:'auto', top: whitePct<=50?4:'auto', left:0, right:0, textAlign:'center', fontSize:'0.48rem', fontWeight:'bold', color: whitePct>50?'#333':'#e8e0d0', writingMode:'vertical-rl', transform:'rotate(180deg)', lineHeight:'20px', overflow:'hidden' }}>
+                  {Math.abs(currentEval)>=99 ? (currentEval>0?'M+':'M-') : (currentEval>0?`+${currentEval.toFixed(1)}`:currentEval.toFixed(1))}
+                </div>
+              </>)
+            })()}
+          </div>
           <div style={{ position:'relative', flexShrink:0 }}>
             {/* Promotion modal */}
             {promoState && (
@@ -566,6 +599,7 @@ export default function PlayBotPage() {
               ))}
             </div>
           </div>
+          </div>{/* end board+eval wrapper */}
 
           {/* Right panel — controls + moves */}
           <div className="side-r" style={{ width:'185px', display:'flex', flexDirection:'column', gap:'0.7rem', paddingTop:'0.5rem' }}>
