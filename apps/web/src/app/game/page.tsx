@@ -134,6 +134,7 @@ export default function GamePage() {
   const voiceStartedRef     = useRef(false)   // guard: only auto-start once
   const gameStartedRef      = useRef(false)   // guard: only process game:start once
   const gameReadyEmittedRef = useRef(false)   // guard: don't re-emit game:ready on reconnect after start
+  const gameInfoRef         = useRef<any>(null) // stable ref so connect handler always has current gameInfo
 
   // New feature states
   const [showPromotion, setShowPromotion]   = useState(false)
@@ -233,6 +234,7 @@ export default function GamePage() {
 
     const info = JSON.parse(stored)
     setGameInfo(info)
+    gameInfoRef.current = info
 
     const color: 'w' | 'b' = info.color === 'b' ? 'b' : 'w'
     setMyColor(color)
@@ -255,14 +257,14 @@ export default function GamePage() {
     gameReadyEmittedRef.current = false  // allow one re-emit if socket wasn't connected yet
     console.log('Emitted game:ready for', info.gameId, '| connected:', socket.connected)
 
-    // Re-emit game:ready on connect only if the game hasn't started yet
+    // Always re-emit game:ready on every reconnect so the socket rejoins the room.
+    // The server guards against double-starting (startedGames Set), so this is safe.
     socket.on('connect', () => {
-      console.log('Socket connected for', info.gameId)
+      const currentInfo = gameInfoRef.current
+      console.log('[Socket] Reconnected — re-emitting game:ready for', currentInfo?.gameId)
       setSocketConnected(true)
-      if (!gameStartedRef.current && !gameReadyEmittedRef.current) {
-        gameReadyEmittedRef.current = true
-        console.log('Re-emitting game:ready (socket reconnected before start)')
-        socket.emit('game:ready', { gameId: info.gameId })
+      if (currentInfo?.gameId) {
+        socket.emit('game:ready', { gameId: currentInfo.gameId })
       }
     })
 

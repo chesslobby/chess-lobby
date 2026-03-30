@@ -9,6 +9,7 @@ import { Server, Socket } from 'socket.io'
 // eslint-disable-next-line @typescript-eslint/no-var-requires
 const Chess = require('chess.js').Chess
 import { prisma } from '../db/client'
+import { pendingGames } from './matchmaking'
 
 function calculateElo(
   whiteElo: number,
@@ -297,6 +298,9 @@ async function endGame(
   if (game.clockInterval) clearInterval(game.clockInterval)
   activeGames.delete(gameId)
   startedGames.delete(gameId)
+  // Clear pending-game entries so reconnecting players don't get stale match:found
+  pendingGames.delete(game.whiteId)
+  pendingGames.delete(game.blackId)
 
   // DB updates are best-effort — a connection drop must not prevent the clients
   // from receiving game:end and returning to the lobby.

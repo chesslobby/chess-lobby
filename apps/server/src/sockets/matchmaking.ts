@@ -16,6 +16,10 @@ const queues: Record<number, QueueEntry[]> = {}
 // Active private rooms waiting for opponent
 const pendingRooms: Record<string, PendingRoom> = {}
 
+// userId → gameId: tracks players whose match was found but may not have received the event
+// (e.g. socket reconnected mid-matchmaking). Cleared when the game ends.
+export const pendingGames = new Map<string, { gameId: string; payload: any }>()
+
 interface QueueEntry {
   socketId: string
   userId: string
@@ -36,6 +40,23 @@ interface PendingRoom {
 
 export function registerMatchmakingHandlers(io: Server, socket: Socket) {
   const { userId, username } = socket.data
+
+  // ── Re-deliver pending match on reconnect ──────────────────
+  const pending = pendingGames.get(userId)
+  if (pending) {
+    console.log(`[Pending] Re-delivering match:found to ${username} for game ${pending.gameId}`)
+    // Short delay so the client's socket listeners are registered before the event arrives
+    setTimeout(() => socket.emit('match:found', pending.payload), 800)
+  }
+
+  // Allow client to poll explicitly (e.g. on page load)
+  socket.on('matchmaking:check-pending', () => {
+    const p = pendingGames.get(userId)
+    if (p) {
+      console.log(`[Pending] check-pending: sending match:found to ${username} for game ${p.gameId}`)
+      socket.emit('match:found', p.payload)
+    }
+  })
 
   // ── Join public queue ──────────────────────────────────────
   socket.on('queue:join', async ({ timeControl, eloRating }: { timeControl: number; eloRating: number }) => {
@@ -77,19 +98,25 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
         socket.join(game.id)
         io.sockets.sockets.get(opponent.socketId)?.join(game.id)
 
-        socket.emit('match:found', {
+        const myPayload = {
           gameId: game.id,
           color: white.userId === userId ? 'w' : 'b',
           opponent: { id: opponent.userId, username: opponent.username, eloRating: opponent.eloRating },
           timeControl: tc,
-        })
-
-        io.to(opponent.socketId).emit('match:found', {
+        }
+        const opponentPayload = {
           gameId: game.id,
           color: white.userId === opponent.userId ? 'w' : 'b',
           opponent: { id: userId, username, eloRating: elo },
           timeControl: tc,
-        })
+        }
+
+        // Store so reconnecting sockets can receive the event again
+        pendingGames.set(userId, { gameId: game.id, payload: myPayload })
+        pendingGames.set(opponent.userId, { gameId: game.id, payload: opponentPayload })
+
+        socket.emit('match:found', myPayload)
+        io.to(opponent.socketId).emit('match:found', opponentPayload)
       } catch (err) {
         console.error('[Match] createGame failed:', err)
         socket.emit('queue:error', { message: 'Failed to create game, please try again' })
@@ -175,19 +202,24 @@ export function registerMatchmakingHandlers(io: Server, socket: Socket) {
       socket.join(game.id)
       io.sockets.sockets.get(room.hostSocketId)?.join(game.id)
 
-      io.to(room.hostSocketId).emit('room:joined', {
+      const hostPayload = {
         gameId: game.id,
         color: white.userId === room.hostUserId ? 'w' : 'b',
         opponent: { id: userId, username, eloRating: elo },
         timeControl: room.timeControl,
-      })
-
-      socket.emit('room:joined', {
+      }
+      const guestPayload = {
         gameId: game.id,
         color: white.userId === userId ? 'w' : 'b',
         opponent: { id: room.hostUserId, username: room.hostUsername, eloRating: room.hostElo },
         timeControl: room.timeControl,
-      })
+      }
+
+      pendingGames.set(room.hostUserId, { gameId: game.id, payload: hostPayload })
+      pendingGames.set(userId, { gameId: game.id, payload: guestPayload })
+
+      io.to(room.hostSocketId).emit('room:joined', hostPayload)
+      socket.emit('room:joined', guestPayload)
     } catch (err) {
       console.error('[Room] createGame failed:', err)
       socket.emit('room:error', { message: 'Failed to create game, please try again' })
