@@ -46,8 +46,8 @@ export function registerChatHandlers(io: Server, socket: Socket) {
       timestamp: Date.now(),
     }
 
-    // Relay to entire game room (players + spectators)
-    io.to(gameId).emit('chat:receive', payload)
+    // Relay to the rest of the room — exclude sender (client adds its own message optimistically)
+    socket.to(gameId).emit('chat:receive', payload)
   })
 
   // ── Spectator chat (same room, tagged type) ────────────────

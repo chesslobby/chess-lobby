@@ -53,6 +53,8 @@ interface ActiveGame {
 const activeGames  = new Map<string, ActiveGame>()
 // gameId → Set of userIds that have sent game:ready
 const readyPlayers = new Map<string, Set<string>>()
+// gameIds that have already been started — prevents duplicate game:start on reconnect races
+const startedGames = new Set<string>()
 
 export function registerGameHandlers(io: Server, socket: Socket) {
   const { userId } = socket.data
@@ -87,8 +89,9 @@ export function registerGameHandlers(io: Server, socket: Socket) {
 
     console.log(`[Game] Ready: ${socket.data.username} for game ${gameId}. Ready count: ${ready.size}`)
 
-    // Start when both ready — guard against Set being deleted by the other player's concurrent handler
-    if (ready.size >= 2) {
+    // Start when both ready — guard against duplicate emissions from reconnect races
+    if (ready.size >= 2 && !startedGames.has(gameId)) {
+      startedGames.add(gameId)
       readyPlayers.delete(gameId)
       startClock(io, gameId)
       io.to(gameId).emit('game:start', {
@@ -289,6 +292,7 @@ async function endGame(
 ) {
   if (game.clockInterval) clearInterval(game.clockInterval)
   activeGames.delete(gameId)
+  startedGames.delete(gameId)
 
   // DB updates are best-effort — a connection drop must not prevent the clients
   // from receiving game:end and returning to the lobby.

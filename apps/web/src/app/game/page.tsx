@@ -131,7 +131,9 @@ export default function GamePage() {
   const [isSpeaking, setIsSpeaking]               = useState(false)
   const [isOpponentSpeaking, setIsOpponentSpeaking] = useState(false)
   const [isDeafened, setIsDeafened]               = useState(false)
-  const voiceStartedRef = useRef(false)   // guard: only auto-start once
+  const voiceStartedRef     = useRef(false)   // guard: only auto-start once
+  const gameStartedRef      = useRef(false)   // guard: only process game:start once
+  const gameReadyEmittedRef = useRef(false)   // guard: don't re-emit game:ready on reconnect after start
 
   // New feature states
   const [showPromotion, setShowPromotion]   = useState(false)
@@ -243,20 +245,36 @@ export default function GamePage() {
     const socket = getSocket()
     setSocketConnected(socket.connected)
 
-    // Emit immediately (socket may already be connected)
+    // ── Clear any stale listeners from a previous mount before registering ──
+    ;['connect','disconnect','game:start','game:move','game:clock','game:end','game:invalid-move',
+      'game:draw-offered','game:opponent-disconnected','chat:receive','game:rematch-offered','voice:speaking'
+    ].forEach(ev => socket.off(ev))
+
+    // Emit game:ready immediately (socket may already be connected)
     socket.emit('game:ready', { gameId: info.gameId })
+    gameReadyEmittedRef.current = false  // allow one re-emit if socket wasn't connected yet
     console.log('Emitted game:ready for', info.gameId, '| connected:', socket.connected)
 
-    // Re-emit on connect in case socket wasn't connected yet
+    // Re-emit game:ready on connect only if the game hasn't started yet
     socket.on('connect', () => {
-      console.log('Socket connected, re-emitting game:ready for', info.gameId)
+      console.log('Socket connected for', info.gameId)
       setSocketConnected(true)
-      socket.emit('game:ready', { gameId: info.gameId })
+      if (!gameStartedRef.current && !gameReadyEmittedRef.current) {
+        gameReadyEmittedRef.current = true
+        console.log('Re-emitting game:ready (socket reconnected before start)')
+        socket.emit('game:ready', { gameId: info.gameId })
+      }
     })
 
     socket.on('disconnect', () => { setSocketConnected(false) })
 
     socket.on('game:start', ({ fen: startFen, clocks: c }: any) => {
+      // Deduplicate — server may emit once but reconnect races can deliver it multiple times
+      if (gameStartedRef.current) {
+        console.log('game:start ignored (already started)')
+        return
+      }
+      gameStartedRef.current = true
       console.log('game:start received!', { fen: startFen, clocks: c })
       const { Chess } = require('chess.js')
       const ch = new Chess()
@@ -458,6 +476,12 @@ Opening: ${openingName || 'Unknown'}
         return
       }
       setLocalStream(stream)
+
+      // Close any stale peer connection before creating a new one
+      if (peerRef.current) {
+        try { peerRef.current.close() } catch {}
+        peerRef.current = null
+      }
 
       const pc = new RTCPeerConnection({ iceServers: ICE_SERVERS, iceCandidatePoolSize: 10 })
       peerRef.current = pc
