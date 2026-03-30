@@ -335,6 +335,18 @@ export default function HomePage() {
             Web &bull; Android &bull; Cross-Platform
           </span>
         </footer>
+
+        {/* Site footer */}
+        <footer style={{ borderTop:'1px solid rgba(201,168,76,0.15)', padding:'24px 20px', textAlign:'center', color:'#6b7a8d', fontSize:'0.85rem', marginTop:40, position:'relative', zIndex:2 }}>
+          <div style={{ marginBottom:10, display:'flex', gap:20, justifyContent:'center', flexWrap:'wrap' }}>
+            <Link href="/about"       style={{ color:'#c9a84c', textDecoration:'none' }}>About</Link>
+            <Link href="/privacy"     style={{ color:'#c9a84c', textDecoration:'none' }}>Privacy Policy</Link>
+            <Link href="/leaderboard" style={{ color:'#c9a84c', textDecoration:'none' }}>Leaderboard</Link>
+            <Link href="/learn"       style={{ color:'#c9a84c', textDecoration:'none' }}>Learn Chess</Link>
+            <a href="mailto:chesslobby.play@gmail.com" style={{ color:'#c9a84c', textDecoration:'none' }}>Contact</a>
+          </div>
+          <div>© 2026 Chess Lobby — Play Chess. Talk. Win.</div>
+        </footer>
       </main>
     </>
   )

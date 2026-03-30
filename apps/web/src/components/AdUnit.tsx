@@ -9,7 +9,7 @@ interface AdUnitProps {
   className?: string
 }
 
-const ADSENSE_CLIENT = 'ca-pub-XXXXXXXXXXXXXXXX'
+const ADSENSE_CLIENT = 'ca-pub-8306823140109021'
 
 export default function AdUnit({ slot, format = 'auto', style, className }: AdUnitProps) {
   const initialized = useRef(false)
