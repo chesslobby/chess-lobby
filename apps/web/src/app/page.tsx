@@ -1,5 +1,6 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 
 const FLOAT_PIECES = [
@@ -47,6 +48,22 @@ const STATS = [
 ]
 
 export default function HomePage() {
+  const [liveCount, setLiveCount] = useState<number | null>(null)
+  const [totalUsers, setTotalUsers] = useState<number | null>(null)
+
+  useEffect(() => {
+    async function fetchLive() {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000'}/games/live`)
+        const data = await res.json()
+        setLiveCount((data.games || []).length)
+      } catch {}
+    }
+    fetchLive()
+    const id = setInterval(fetchLive, 30000)
+    return () => clearInterval(id)
+  }, [])
+
   return (
     <>
       <style suppressHydrationWarning>{`
@@ -223,6 +240,13 @@ export default function HomePage() {
             <span className="pill">💬 Live Chat</span>
             <span className="pill">🏆 Elo Ranking</span>
           </div>
+
+          {liveCount !== null && liveCount > 0 && (
+            <div className="fade-in-2" style={{ display:'flex', alignItems:'center', gap:'0.5rem', marginBottom:'1rem', background:'rgba(34,197,94,0.08)', border:'1px solid rgba(34,197,94,0.25)', borderRadius:999, padding:'0.35rem 1rem' }}>
+              <span style={{ width:8, height:8, borderRadius:'50%', background:'#22c55e', display:'inline-block', animation:'livePulse 1.2s ease-in-out infinite' }} />
+              <span style={{ color:'#22c55e', fontSize:'0.85rem', fontWeight:600 }}>⚡ {liveCount} game{liveCount !== 1 ? 's' : ''} happening right now</span>
+            </div>
+          )}
 
           <div className="fade-in-3 cta-buttons" style={{ display:'flex', flexWrap:'wrap', gap:'1rem', justifyContent:'center', marginBottom:'1.25rem' }}>
             <Link href="/lobby" className="btn-gold">Play Now</Link>

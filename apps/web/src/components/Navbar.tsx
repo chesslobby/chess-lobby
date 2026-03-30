@@ -30,8 +30,11 @@ export default function Navbar() {
   const [user, setUser]                     = useState<any>(null)
   const [loggedIn, setLoggedIn]             = useState(false)
   const [scrolled, setScrolled]             = useState(false)
+  const [notifOpen, setNotifOpen]           = useState(false)
+  const [adminAnnouncement, setAdminAnnouncement] = useState('')
   const dropdownRef = useRef<HTMLDivElement>(null)
   const learnRef    = useRef<HTMLDivElement>(null)
+  const notifRef    = useRef<HTMLDivElement>(null)
   const pathname    = usePathname()
 
   useEffect(() => {
@@ -50,9 +53,17 @@ export default function Navbar() {
     function onClickOutside(e: MouseEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false)
       if (learnRef.current    && !learnRef.current.contains(e.target as Node))    setLearnOpen(false)
+      if (notifRef.current    && !notifRef.current.contains(e.target as Node))    setNotifOpen(false)
     }
     document.addEventListener('mousedown', onClickOutside)
     return () => document.removeEventListener('mousedown', onClickOutside)
+  }, [])
+
+  // Listen for admin announcements via custom event from lobby socket
+  useEffect(() => {
+    function onAnnounce(e: any) { setAdminAnnouncement(e.detail) }
+    window.addEventListener('admin:announcement', onAnnounce)
+    return () => window.removeEventListener('admin:announcement', onAnnounce)
   }, [])
 
   function getTitleBadge(elo: number) {
@@ -335,6 +346,38 @@ export default function Navbar() {
                   Sign In
                 </Link>
               </>
+            )}
+
+            {/* Notification bell */}
+            {loggedIn && (
+              <div ref={notifRef} style={{ position: 'relative' }}>
+                <button
+                  onClick={() => setNotifOpen(p => !p)}
+                  style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.3rem', position: 'relative', color: '#9aa5b4', fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}
+                  title="Notifications"
+                >
+                  🔔
+                  {adminAnnouncement && (
+                    <span style={{ position: 'absolute', top: 0, right: 0, width: 8, height: 8, borderRadius: '50%', background: '#ef4444', border: '1.5px solid #0a1628' }} />
+                  )}
+                </button>
+                {notifOpen && (
+                  <div className="nav-dropdown dropdown-enter" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: 260, zIndex: 200, padding: '0.5rem 0' }}>
+                    <div style={{ padding: '0.4rem 1rem 0.25rem', fontSize: '0.7rem', color: '#4a5568', textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600 }}>Notifications</div>
+                    {adminAnnouncement ? (
+                      <div style={{ padding: '0.6rem 1rem', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                        <span style={{ fontSize: '0.9rem' }}>📢</span>
+                        <div>
+                          <div style={{ color: '#e8e0d0', fontSize: '0.83rem' }}>{adminAnnouncement}</div>
+                          <div style={{ color: '#4a5568', fontSize: '0.72rem', marginTop: '0.15rem' }}>Announcement</div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div style={{ padding: '0.75rem 1rem', color: '#4a5568', fontSize: '0.85rem', fontStyle: 'italic' }}>No new notifications</div>
+                    )}
+                  </div>
+                )}
+              </div>
             )}
 
             {/* Hamburger */}

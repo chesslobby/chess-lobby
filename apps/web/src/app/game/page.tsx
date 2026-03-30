@@ -58,7 +58,11 @@ function fenToBoard(fen: string): (string | null)[][] {
 }
 
 function formatClock(ms: number): string {
-  const s = Math.max(0, Math.floor(ms / 1000))
+  const total = Math.max(0, ms)
+  if (total < 10000) {
+    return (total / 1000).toFixed(1)
+  }
+  const s = Math.floor(total / 1000)
   return `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`
 }
 
@@ -387,21 +391,28 @@ export default function GamePage() {
   }, [gameOver])
 
   // ── Share game helpers ───────────────────────────────────────
+  function generateShareText() {
+    const emoji = gameResult.includes('Win') ? '🏆' : gameResult.includes('Draw') ? '🤝' : '😔'
+    const totalMoves = moveHistory.length * 2 - (pendingWhite ? 1 : 0)
+    return `${emoji} Chess Lobby ${new Date().toLocaleDateString()}
+${gameResult} in ${totalMoves} moves!
+Opening: ${openingName || 'Unknown'}
+♟️ Play chess with voice chat at chesslobby.in`
+  }
+
   function handleShareGame() {
-    const url = `https://chesslobby.in/replay?gameId=${gameInfo?.gameId}`
-    try { navigator.clipboard.writeText(url) } catch {}
+    try { navigator.clipboard.writeText(generateShareText()) } catch {}
     setShareCopied(true)
     setTimeout(() => setShareCopied(false), 2500)
   }
 
   function handleShareWhatsApp() {
-    const url = `https://chesslobby.in/replay?gameId=${gameInfo?.gameId}`
-    window.open(`https://wa.me/?text=${encodeURIComponent('Check out this chess game! ' + url)}`, '_blank')
+    window.open(`https://wa.me/?text=${encodeURIComponent(generateShareText())}`, '_blank')
   }
 
   function handleShareTwitter() {
-    const url = `https://chesslobby.in/replay?gameId=${gameInfo?.gameId}`
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent('I just played chess on Chess Lobby!')}&url=${encodeURIComponent(url)}`, '_blank')
+    const text = generateShareText()
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}`, '_blank')
   }
 
   // ── Quick message sender ─────────────────────────────────────
@@ -830,6 +841,10 @@ export default function GamePage() {
         @keyframes floatUp { 0% { transform: translateY(0) scale(1); opacity:1; } 100% { transform: translateY(-200px) scale(1.5); opacity:0; } }
         @keyframes speakPulse { from { box-shadow: 0 0 10px rgba(39,174,96,0.4); } to { box-shadow: 0 0 25px rgba(39,174,96,0.8); } }
         .game-over-card { animation: fadeInScale 0.3s ease both; }
+        @keyframes clockPulse { 0%,100%{opacity:1}50%{opacity:.5} }
+        @keyframes clockShake { 0%,100%{transform:translateX(0)}20%{transform:translateX(-3px)}60%{transform:translateX(3px)} }
+        .clock-low    { animation: clockPulse 1s ease-in-out infinite; }
+        .clock-urgent { animation: clockShake 0.3s ease-in-out infinite; color:#ef4444 !important; }
         .quick-msg-btn { background:rgba(255,255,255,0.04); border:1px solid rgba(201,168,76,0.18); border-radius:8px; color:#9aa5b4; font-size:11px; padding:2px 8px; cursor:pointer; font-family:var(--font-crimson),Georgia,serif; transition:all .15s; white-space:nowrap; }
         .quick-msg-btn:hover:not(:disabled) { background:rgba(201,168,76,0.15); color:#c9a84c; border-color:rgba(201,168,76,0.4); }
         .quick-msg-btn:disabled { opacity:0.35; cursor:default; }
@@ -952,16 +967,16 @@ export default function GamePage() {
               {/* Share game */}
               {gameInfo?.gameId && (
                 <div style={{ marginTop:'0.75rem', borderTop:'1px solid rgba(255,255,255,0.07)', paddingTop:'0.75rem' }}>
-                  <div style={{ fontSize:'0.75rem', color:'#4a5568', marginBottom:'0.5rem' }}>Share this game</div>
+                  <div style={{ fontSize:'0.75rem', color:'#4a5568', marginBottom:'0.5rem' }}>Share your result</div>
                   <div style={{ display:'flex', gap:'0.5rem', justifyContent:'center', flexWrap:'wrap' }}>
                     <button onClick={handleShareGame} style={{ background: shareCopied ? 'rgba(34,197,94,.12)' : 'rgba(201,168,76,0.1)', color: shareCopied ? '#22c55e' : '#c9a84c', border:`1px solid ${shareCopied ? 'rgba(34,197,94,.3)' : 'rgba(201,168,76,0.35)'}`, borderRadius:7, padding:'0.4rem 0.9rem', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
-                      {shareCopied ? '✓ Copied!' : '🔗 Copy Link'}
+                      {shareCopied ? '✓ Copied!' : '📋 Copy Result'}
                     </button>
                     <button onClick={handleShareWhatsApp} style={{ background:'rgba(37,211,102,0.1)', color:'#25d366', border:'1px solid rgba(37,211,102,0.3)', borderRadius:7, padding:'0.4rem 0.9rem', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
-                      WhatsApp
+                      💬 WhatsApp
                     </button>
                     <button onClick={handleShareTwitter} style={{ background:'rgba(29,161,242,0.1)', color:'#1da1f2', border:'1px solid rgba(29,161,242,0.3)', borderRadius:7, padding:'0.4rem 0.9rem', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
-                      𝕏 Twitter
+                      🐦 Share on X
                     </button>
                   </div>
                 </div>
@@ -1080,7 +1095,7 @@ export default function GamePage() {
                   </div>
                 </div>
               )}
-              <div style={{ fontSize:'1.45rem', fontFamily:'monospace', color: oppClock <= 30000 ? '#ef4444' : '#e8c97a', marginTop:'0.35rem', letterSpacing:'0.05em' }}>{formatClock(oppClock)}</div>
+              <div className={oppClock <= 10000 ? 'clock-urgent' : oppClock <= 30000 ? 'clock-low' : ''} style={{ fontSize: oppClock === myClock && currentTurn !== myColor ? '1.6rem' : '1.45rem', fontFamily:'monospace', color: oppClock <= 30000 ? '#ef4444' : oppClock === myClock && currentTurn !== myColor ? '#e8c97a' : '#9aa5b4', marginTop:'0.35rem', letterSpacing:'0.05em', opacity: currentTurn === myColor ? 0.6 : 1, transition: 'opacity 0.2s' }}>{formatClock(oppClock)}</div>
               {oppCaptures.length > 0 && (
                 <div style={{ display:'flex', flexWrap:'wrap', gap:'1px', marginTop:'0.2rem', alignItems:'center' }}>
                   {oppCaptures.map((p, i) => <span key={i} style={{ fontSize:'0.8rem', lineHeight:1 }}>{PIECE_UNICODE[p] || p}</span>)}
@@ -1133,7 +1148,7 @@ export default function GamePage() {
                   <div style={{ fontSize:'0.7rem', color:'#4a5568' }}>{myElo} · {myColor === 'w' ? '⚪' : '⚫'}</div>
                 </div>
               </div>
-              <div style={{ fontSize:'1.45rem', fontFamily:'monospace', color: myClock <= 30000 ? '#ef4444' : '#e8c97a', marginTop:'0.35rem', letterSpacing:'0.05em' }}>{formatClock(myClock)}</div>
+              <div className={myClock <= 10000 ? 'clock-urgent' : myClock <= 30000 ? 'clock-low' : ''} style={{ fontSize: currentTurn === myColor ? '1.6rem' : '1.45rem', fontFamily:'monospace', color: myClock <= 30000 ? '#ef4444' : '#e8c97a', marginTop:'0.35rem', letterSpacing:'0.05em', opacity: currentTurn !== myColor ? 0.6 : 1, transition: 'opacity 0.2s' }}>{formatClock(myClock)}</div>
             </div>
           </div>
 

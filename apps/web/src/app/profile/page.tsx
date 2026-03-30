@@ -393,6 +393,11 @@ export default function ProfilePage() {
                 <button className="btn-edit" onClick={() => setEditMode(v => !v)}>
                   {editMode ? 'Cancel' : 'Edit Profile'}
                 </button>
+                <button className="btn-sm" onClick={() => {
+                  const text = `🏆 ${user.username} on Chess Lobby\n📊 Elo: ${user.eloRating ?? 1200} | Games: ${gamesPlayed} | Win rate: ${winRate}\nPlay me at https://chesslobby.in/profile/${user.username}`
+                  try { navigator.clipboard.writeText(text) } catch {}
+                  showToast('Profile link copied! 🔗', 'success')
+                }}>📤 Share Profile</button>
                 <button className="btn-logout" onClick={() => { clearAuth(); router.push('/') }}>
                   Sign Out
                 </button>
@@ -568,6 +573,26 @@ export default function ProfilePage() {
                 )}
               </>
             )}
+          </div>
+
+          {/* ── INVITE FRIENDS ── */}
+          <div style={{ ...cardStyle, padding: '1.25rem', marginBottom: '1.5rem' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.75rem' }}>
+              <div>
+                <div style={{ fontFamily: 'var(--font-playfair),Georgia,serif', fontSize: '1rem', color: '#e8e0d0', fontWeight: 700, marginBottom: '0.25rem' }}>🎖️ Invite Friends</div>
+                <div style={{ fontSize: '0.78rem', color: '#4a5568' }}>Share your invite link — invite 5 friends → unlock <span style={{ color: '#c9a84c' }}>Recruiter badge</span></div>
+              </div>
+              <button
+                className="btn-sm"
+                onClick={() => {
+                  const link = `https://chesslobby.in/lobby?ref=${user.username}`
+                  try { navigator.clipboard.writeText(link) } catch {}
+                  showToast('Invite link copied! 🎉', 'success')
+                }}
+              >
+                🔗 Copy Invite Link
+              </button>
+            </div>
           </div>
 
           {/* ── FRIENDS ── */}

@@ -76,6 +76,7 @@ export default function LobbyPage() {
       setPuzzleStreak(isNaN(s) ? 0 : s)
     } catch {}
     setTimeout(() => setPageLoading(false), 600)
+
   }, [])
 
   // ── Search timer ─────────────────────────────────────────────
