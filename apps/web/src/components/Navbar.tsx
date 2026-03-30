@@ -203,6 +203,8 @@ export default function Navbar() {
           .nav-center { display: none !important; }
           .hamburger { display: flex !important; }
           .nav-play-desktop { display: none !important; }
+          .nav-user-text { display: none !important; }
+          .nav-notif { display: none !important; }
         }
       `}</style>
 
@@ -301,7 +303,7 @@ export default function Navbar() {
                   >
                     {(user.username?.[0] || 'G').toUpperCase()}
                   </div>
-                  <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1px' }}>
+                  <div className="nav-user-text" style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1px' }}>
                     <div style={{ fontSize: '0.82rem', color: '#e8e0d0', fontFamily: 'var(--font-crimson), Georgia, serif', lineHeight: 1 }}>
                       {user.username}
                     </div>
@@ -312,7 +314,7 @@ export default function Navbar() {
                       )}
                     </div>
                   </div>
-                  <span style={{ color: '#4a5568', fontSize: '0.6rem', marginLeft: '0.1rem', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
+                  <span className="nav-user-text" style={{ color: '#4a5568', fontSize: '0.6rem', marginLeft: '0.1rem', transition: 'transform 0.2s', transform: dropdownOpen ? 'rotate(180deg)' : 'none' }}>▼</span>
                 </button>
 
                 {dropdownOpen && (
@@ -366,7 +368,7 @@ export default function Navbar() {
 
             {/* Notification bell */}
             {mounted && loggedIn && (
-              <div ref={notifRef} style={{ position: 'relative' }}>
+              <div ref={notifRef} className="nav-notif" style={{ position: 'relative' }}>
                 <button
                   onClick={() => setNotifOpen(p => !p)}
                   style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '0.3rem', position: 'relative', color: '#9aa5b4', fontSize: '1.1rem', display: 'flex', alignItems: 'center' }}

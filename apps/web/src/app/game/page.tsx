@@ -293,9 +293,21 @@ export default function GamePage() {
     })
 
     socket.on('game:move', ({ from: mFrom, to: mTo, fen: moveFen, clocks: c, san }: any) => {
+      console.log('[Move] Received:', mFrom, '->', mTo, '| FEN:', moveFen?.substring?.(0, 30))
+
+      if (!moveFen) {
+        console.error('[Move] No FEN in game:move payload — board not updated')
+        return
+      }
+
       const { Chess } = require('chess.js')
       const ch = new Chess()
-      ch.load(moveFen)
+      try {
+        ch.load(moveFen)
+      } catch (e) {
+        console.error('[Move] Failed to load FEN:', moveFen, e)
+        return
+      }
       const justMoved: 'w' | 'b' = ch.turn() === 'w' ? 'b' : 'w'
       const isOpponent = justMoved !== myColorRef.current
 
@@ -320,8 +332,11 @@ export default function GamePage() {
         if (ch.inCheck()) playCheckSound()
       }
 
+      // Always update board state for both players
       fenRef.current = moveFen
-      setChess(ch); setFen(moveFen); setBoard(fenToBoard(moveFen))
+      setFen(moveFen)
+      setBoard(fenToBoard(moveFen))
+      setChess(ch)
       setCurrentTurn(ch.turn())
       if (c) setClocks(c)
       if (mFrom && mTo) setLastMove({ from: mFrom, to: mTo })
