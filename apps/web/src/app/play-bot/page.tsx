@@ -134,11 +134,28 @@ export default function PlayBotPage() {
   const [gameResult, setGameResult] = useState(null)
   const [gamePgn, setGamePgn] = useState('')
   const [currentEval, setCurrentEval] = useState(0)
+  const [boardSize, setBoardSize] = useState(480)
   const moveListRef = useRef(null)
 
   useEffect(() => {
     if (moveListRef.current) moveListRef.current.scrollTop = moveListRef.current.scrollHeight
   }, [moveList])
+
+  useEffect(() => {
+    function calcSize() {
+      const w = window.innerWidth
+      const h = window.innerHeight
+      if (w < 640) {
+        setBoardSize(Math.min(w, h - 120))
+      } else {
+        // Account for two side panels (155px each) + eval bar (26px) + gaps + page padding
+        setBoardSize(Math.min(h - 140, w - 155 - 155 - 26 - 48))
+      }
+    }
+    calcSize()
+    window.addEventListener('resize', calcSize)
+    return () => window.removeEventListener('resize', calcSize)
+  }, [])
 
   useEffect(() => () => { workerRef.current?.terminate() }, [])
 
@@ -456,7 +473,7 @@ export default function PlayBotPage() {
       <style suppressHydrationWarning>{`
         @keyframes hint-pulse { 0%,100%{outline-color:rgba(201,168,76,0.9)} 50%{outline-color:rgba(201,168,76,0.1)} }
         @keyframes dot-blink { 0%,100%{opacity:0.2} 50%{opacity:1} }
-        .bsq { width:60px;height:60px;display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;user-select:none;box-sizing:border-box;flex-shrink:0; }
+        .bsq { display:flex;align-items:center;justify-content:center;cursor:pointer;position:relative;user-select:none;box-sizing:border-box;flex-shrink:0; }
         .bsq.hint-sq { animation:hint-pulse 0.55s ease-in-out 3; }
         .ctrl-btn { background:rgba(255,255,255,0.05); border:1px solid rgba(255,255,255,0.1); border-radius:8px; padding:0.5rem 0.85rem; color:#9aa5b4; font-size:0.82rem; cursor:pointer; transition:all 0.15s; font-family:var(--font-crimson),Georgia,serif; text-align:left; width:100%; }
         .ctrl-btn:hover:not([disabled]) { background:rgba(255,255,255,0.09); color:#e8e0d0; }
@@ -468,8 +485,6 @@ export default function PlayBotPage() {
         .moves-s::-webkit-scrollbar{width:4px}
         .moves-s::-webkit-scrollbar-thumb{background:rgba(201,168,76,0.2);border-radius:2px}
         @media(max-width:620px){
-          .bsq{width:44px!important;height:44px!important;}
-          .piece-g{font-size:1.55rem!important;}
           .side-l,.side-r{display:none!important;}
           .bot-eval-bar{display:none!important;}
         }
@@ -519,7 +534,7 @@ export default function PlayBotPage() {
           {/* Board + eval bar */}
           <div style={{ display:'flex', gap:'6px', alignItems:'stretch', flexShrink:0 }}>
           {/* Eval bar */}
-          <div className="bot-eval-bar" style={{ width:20, background:'#1a1a2e', borderRadius:4, overflow:'hidden', position:'relative', minHeight:480, flexShrink:0 }}>
+          <div className="bot-eval-bar" style={{ width:20, background:'#1a1a2e', borderRadius:4, overflow:'hidden', position:'relative', height:boardSize, flexShrink:0 }}>
             {(() => {
               const clamped = Math.max(-10, Math.min(10, currentEval))
               const whitePct = Math.round((clamped + 10) / 20 * 100)
@@ -578,15 +593,17 @@ export default function PlayBotPage() {
                     const pieceKey = cell?.p && cell?.c ? cell.c + cell.p : null
                     const pieceChar = pieceKey ? PIECE_MAP[pieceKey] : null
 
+                    const sqPx = Math.max(36, Math.floor(boardSize / 8))
+                    const pieceFontPx = Math.round(sqPx * 0.7)
                     return (
                       <div key={c} className={`bsq${isHint ? ' hint-sq' : ''}`}
                         onClick={() => handleSquareClick(sq)}
-                        style={{ background: bg, outline: isHint ? '3px solid rgba(201,168,76,0.9)' : 'none', outlineOffset: '-3px' }}>
+                        style={{ width: sqPx, height: sqPx, background: bg, outline: isHint ? '3px solid rgba(201,168,76,0.9)' : 'none', outlineOffset: '-3px' }}>
                         {isLegal && (
                           <div style={{ position:'absolute', width: hasPiece ? '88%' : '32%', height: hasPiece ? '88%' : '32%', borderRadius:'50%', background: hasPiece ? 'transparent' : 'rgba(0,0,0,0.22)', border: hasPiece ? '3px solid rgba(0,0,0,0.28)' : 'none', zIndex:1, pointerEvents:'none' }} />
                         )}
                         {pieceChar && (
-                          <span className="piece-g" style={{ fontSize:'2.1rem', lineHeight:1, zIndex:2, position:'relative', filter:'drop-shadow(1px 2px 2px rgba(0,0,0,0.45))', color: cell?.c === 'w' ? '#fff' : '#1a1008', WebkitTextStroke: cell?.c === 'w' ? '0.5px #555' : '0.5px #bbb' }}>
+                          <span className="piece-g" style={{ fontSize: pieceFontPx, lineHeight:1, zIndex:2, position:'relative', filter:'drop-shadow(1px 2px 2px rgba(0,0,0,0.45))', color: cell?.c === 'w' ? '#fff' : '#1a1008', WebkitTextStroke: cell?.c === 'w' ? '0.5px #555' : '0.5px #bbb' }}>
                             {pieceChar}
                           </span>
                         )}

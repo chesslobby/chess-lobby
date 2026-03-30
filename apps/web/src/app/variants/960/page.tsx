@@ -91,12 +91,28 @@ export default function Chess960Page() {
   const [promoState, setPromoState] = useState(null)
   const [gameResult, setGameResult] = useState(null)
   const [gamePgn, setGamePgn] = useState('')
+  const [boardSize, setBoardSize] = useState(480)
   const moveListRef = useRef(null)
 
   useEffect(() => {
     if (moveListRef.current) moveListRef.current.scrollTop = moveListRef.current.scrollHeight
   }, [moveList])
   useEffect(() => () => { workerRef.current?.terminate() }, [])
+
+  useEffect(() => {
+    function calcSize() {
+      const w = window.innerWidth
+      const h = window.innerHeight
+      if (w < 640) {
+        setBoardSize(Math.min(w - 16, h - 120))
+      } else {
+        setBoardSize(Math.min(h - 140, w - 155 - 200 - 32))
+      }
+    }
+    calcSize()
+    window.addEventListener('resize', calcSize)
+    return () => window.removeEventListener('resize', calcSize)
+  }, [])
 
   function rollNewPosition() {
     setPosition(generateChess960Position())
@@ -318,7 +334,7 @@ export default function Chess960Page() {
         .thinking-dot:nth-child(3){animation:dot-blink 1s ease-in-out 0.66s infinite}
         .moves-s::-webkit-scrollbar{width:4px}
         .moves-s::-webkit-scrollbar-thumb{background:rgba(52,152,219,0.2);border-radius:2px}
-        @media(max-width:620px){ .bsq{width:44px!important;height:44px!important;} .piece-g{font-size:1.55rem!important;} .side960{display:none!important;} }
+        @media(max-width:620px){ .side960{display:none!important;} }
       `}</style>
 
       <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
@@ -392,13 +408,15 @@ export default function Chess960Page() {
                     const pieceKey = cell?.p && cell?.c ? cell.c + cell.p : null
                     const pieceChar = pieceKey ? PIECE_MAP[pieceKey] : null
 
+                    const sqPx = Math.max(36, Math.floor(boardSize / 8))
+                    const pieceFontPx = Math.round(sqPx * 0.7)
                     return (
-                      <div key={c} className="bsq" onClick={() => handleSquareClick(sq)} style={{ background: bg }}>
+                      <div key={c} className="bsq" onClick={() => handleSquareClick(sq)} style={{ width: sqPx, height: sqPx, background: bg }}>
                         {isLegal && (
                           <div style={{ position: 'absolute', width: hasPiece ? '88%' : '32%', height: hasPiece ? '88%' : '32%', borderRadius: '50%', background: hasPiece ? 'transparent' : 'rgba(0,0,0,0.22)', border: hasPiece ? '3px solid rgba(0,0,0,0.28)' : 'none', zIndex: 1, pointerEvents: 'none' }} />
                         )}
                         {pieceChar && (
-                          <span className="piece-g" style={{ fontSize: '2.1rem', lineHeight: 1, zIndex: 2, position: 'relative', filter: 'drop-shadow(1px 2px 2px rgba(0,0,0,0.45))', color: cell?.c === 'w' ? '#fff' : '#1a1008', WebkitTextStroke: cell?.c === 'w' ? '0.5px #555' : '0.5px #bbb' }}>
+                          <span className="piece-g" style={{ fontSize: pieceFontPx, lineHeight: 1, zIndex: 2, position: 'relative', filter: 'drop-shadow(1px 2px 2px rgba(0,0,0,0.45))', color: cell?.c === 'w' ? '#fff' : '#1a1008', WebkitTextStroke: cell?.c === 'w' ? '0.5px #555' : '0.5px #bbb' }}>
                             {pieceChar}
                           </span>
                         )}

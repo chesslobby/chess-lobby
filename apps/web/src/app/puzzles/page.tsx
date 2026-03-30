@@ -262,13 +262,15 @@ export default function PuzzlePage() {
           100% { transform: scale(1); opacity: 1; }
         }
         .solved-banner { animation: solvedPop 0.5s cubic-bezier(.34,1.56,.64,1) both; }
-        @media (max-width: 640px) {
-          .puzzle-layout { flex-direction: column !important; }
-          .puzzle-board { width: 100vw !important; height: 100vw !important; max-width: 100vw !important; flex-shrink: 0 !important; }
+        @media (max-width: 768px) {
+          .puzzle-layout { grid-template-columns: 1fr !important; }
           .puzzle-sidebar { width: 100% !important; }
           .puzzle-actions { flex-direction: column !important; }
           .puzzle-actions button { width: 100% !important; min-height: 48px !important; }
           .puzzle-streak { font-size: 0.8rem !important; }
+        }
+        @media (max-width: 640px) {
+          .puzzle-board { width: calc(100vw - 2rem) !important; max-width: calc(100vw - 2rem) !important; flex-shrink: 0 !important; }
         }
       `}</style>
 

@@ -860,7 +860,7 @@ Opening: ${openingName || 'Unknown'}
           .right-panel.mobile-show { display:flex !important; position:fixed; bottom:0; left:0; right:0; height:60vh; z-index:150; background:#0d1f3c; border-top:1px solid rgba(201,168,76,0.3); box-shadow:0 -4px 20px rgba(0,0,0,0.5); }
           .mobile-overlay { display:block !important; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:140; }
           .mobile-bar { display:flex !important; }
-          .board-size { width: min(calc(100dvh - 130px), calc(100vw - 24px)) !important; }
+          .board-size { width: min(calc(100dvh - 152px), calc(100vw - 24px)) !important; }
         }
         .mobile-overlay { display:none; }
         .mobile-bar { display:none; }
@@ -1163,7 +1163,7 @@ Opening: ${openingName || 'Unknown'}
             </div>
 
             {/* Board */}
-            <div className="board-size game-board-wrap" style={{ position:'relative', width:'min(calc(100dvh - 80px), calc(100vw - 500px))', maxWidth:'520px', aspectRatio:'1', flexShrink:0 }}>
+            <div className="board-size game-board-wrap" style={{ position:'relative', width:'min(calc(100dvh - 152px), calc(100vw - 480px))', maxWidth:'580px', aspectRatio:'1', flexShrink:0 }}>
               <div style={{ position:'relative', paddingLeft:'1.4rem', paddingBottom:'1.4rem', width:'100%', height:'100%', boxSizing:'border-box' }}>
 
                 {rankLabels.map((rank, ri) => (

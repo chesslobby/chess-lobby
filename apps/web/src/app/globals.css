@@ -152,8 +152,38 @@ button:active {
 
 /* ── Prevent horizontal overflow ────────────────────────────── */
 html, body {
-  overflow-x: hidden;
+  overflow-x: hidden !important;
   max-width: 100vw;
+}
+
+body {
+  min-height: 100dvh;
+}
+
+/* ── Game page container — always fits in one screen ────────── */
+.game-container {
+  height: 100dvh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── Chess board square aspect ratio ────────────────────────── */
+.chess-board {
+  aspect-ratio: 1 / 1;
+}
+
+/* ── Panels never overflow their container ──────────────────── */
+.game-panels {
+  overflow: hidden;
+  height: 100%;
+}
+
+@media (max-width: 768px) {
+  .game-container {
+    height: 100dvh;
+    overflow: hidden;
+  }
 }
 
 /* ── Mobile responsive utilities ────────────────────────────── */

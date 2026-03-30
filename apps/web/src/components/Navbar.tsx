@@ -32,15 +32,31 @@ export default function Navbar() {
   const [scrolled, setScrolled]             = useState(false)
   const [notifOpen, setNotifOpen]           = useState(false)
   const [adminAnnouncement, setAdminAnnouncement] = useState('')
+  const [mounted, setMounted]               = useState(false)
   const dropdownRef = useRef<HTMLDivElement>(null)
   const learnRef    = useRef<HTMLDivElement>(null)
   const notifRef    = useRef<HTMLDivElement>(null)
   const pathname    = usePathname()
 
-  useEffect(() => {
+  function refreshAuth() {
     const logged = isLoggedIn()
     setLoggedIn(logged)
-    if (logged) setUser(getUser())
+    setUser(logged ? getUser() : null)
+  }
+
+  useEffect(() => {
+    setMounted(true)
+    refreshAuth()
+
+    // Re-check auth when storage changes (other tabs) or when window regains focus
+    function onStorage() { refreshAuth() }
+    function onFocus() { refreshAuth() }
+    window.addEventListener('storage', onStorage)
+    window.addEventListener('focus', onFocus)
+    return () => {
+      window.removeEventListener('storage', onStorage)
+      window.removeEventListener('focus', onFocus)
+    }
   }, [])
 
   useEffect(() => {
@@ -270,7 +286,7 @@ export default function Navbar() {
 
           {/* Right: user or guest buttons */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flexShrink: 0 }}>
-            {loggedIn && user ? (
+            {mounted && loggedIn && user ? (
               <div ref={dropdownRef} style={{ position: 'relative' }}>
                 <button
                   className="avatar-btn"
@@ -349,7 +365,7 @@ export default function Navbar() {
             )}
 
             {/* Notification bell */}
-            {loggedIn && (
+            {mounted && loggedIn && (
               <div ref={notifRef} style={{ position: 'relative' }}>
                 <button
                   onClick={() => setNotifOpen(p => !p)}
