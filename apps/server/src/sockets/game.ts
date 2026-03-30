@@ -54,8 +54,9 @@ interface ActiveGame {
 const activeGames  = new Map<string, ActiveGame>()
 // gameId → Set of userIds that have sent game:ready
 const readyPlayers = new Map<string, Set<string>>()
-// gameIds that have already been started — prevents duplicate game:start on reconnect races
-const startedGames = new Set<string>()
+// gameId → timestamp of last game:start emission
+// Using a Map (not a Set) so we can re-emit if both players reconnect within 5 s
+const startedGames = new Map<string, number>()
 
 export function registerGameHandlers(io: Server, socket: Socket) {
   const { userId } = socket.data
@@ -91,19 +92,33 @@ export function registerGameHandlers(io: Server, socket: Socket) {
 
     console.log(`[Game] Ready: ${socket.data.username} for game ${gameId}. Ready count: ${ready.size}`)
 
-    // Start when both ready — guard against duplicate emissions from reconnect races
-    if (ready.size >= 2 && !startedGames.has(gameId)) {
-      startedGames.add(gameId)
+    // Start when both ready.
+    // Allow re-emission if both players reconnected and the last start was > 5 s ago —
+    // this handles the case where game:start was sent to a stale socket and never received.
+    const lastStarted = startedGames.get(gameId) ?? 0
+    const alreadyStartedRecently = Date.now() - lastStarted < 5000
+    if (ready.size >= 2 && !alreadyStartedRecently) {
+      startedGames.set(gameId, Date.now())
       readyPlayers.delete(gameId)
       startClock(io, gameId)
-      io.to(gameId).emit('game:start', {
-        fen:   game.chess.fen(),
-        turn:  game.chess.turn(),
+
+      const startPayload = {
+        fen:    game.chess.fen(),
+        turn:   game.chess.turn(),
         clocks: game.clocks,
-        white: { id: game.whiteId },
-        black: { id: game.blackId },
-      })
-      console.log(`[Game] Started and emitted to room: ${gameId}`)
+        white:  { id: game.whiteId },
+        black:  { id: game.blackId },
+      }
+
+      // Emit to each player's current socket individually (handles reconnected sockets)
+      const whiteSocket = io.sockets.sockets.get(game.whiteSocketId)
+      const blackSocket = io.sockets.sockets.get(game.blackSocketId)
+      if (whiteSocket) whiteSocket.emit('game:start', startPayload)
+      if (blackSocket) blackSocket.emit('game:start', startPayload)
+      // Room broadcast as belt-and-suspenders for spectators / edge cases
+      io.to(gameId).emit('game:start', startPayload)
+
+      console.log(`[Game] Started ${gameId} | white socket ok: ${!!whiteSocket} | black socket ok: ${!!blackSocket}`)
     }
   })
 
@@ -297,7 +312,7 @@ async function endGame(
 ) {
   if (game.clockInterval) clearInterval(game.clockInterval)
   activeGames.delete(gameId)
-  startedGames.delete(gameId)
+  startedGames.delete(gameId)   // Map.delete — same API as Set
   // Clear pending-game entries so reconnecting players don't get stale match:found
   pendingGames.delete(game.whiteId)
   pendingGames.delete(game.blackId)

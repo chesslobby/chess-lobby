@@ -146,6 +146,7 @@ export default function GamePage() {
 
   // Animation state
   const [animPiece, setAnimPiece] = useState<{symbol:string, fromSq:string, toSq:string}|null>(null)
+  const [boardKey, setBoardKey]   = useState(0)  // incremented on every move to force board re-render
   const [animReady, setAnimReady] = useState(false)
 
   // Social features state
@@ -340,6 +341,7 @@ export default function GamePage() {
       setBoard(fenToBoard(moveFen))
       setChess(ch)
       setCurrentTurn(ch.turn())
+      setBoardKey(k => k + 1)  // force board grid re-render
       if (c) setClocks(c)
       if (mFrom && mTo) setLastMove({ from: mFrom, to: mTo })
       setSelectedSquare(null); setValidMoves([])
@@ -1214,7 +1216,7 @@ Opening: ${openingName || 'Unknown'}
                   <div key={f} style={{ position:'absolute', bottom:0, left:`calc(1.4rem+${ci}*(100%-1.4rem)/8+(100%-1.4rem)/16)`, fontSize:'0.62rem', color:'rgba(201,168,76,0.55)', fontFamily:'monospace', lineHeight:1, transform:'translateX(-50%)', userSelect:'none' }}>{f}</div>
                 ))}
 
-                <div style={{ position:'absolute', top:0, left:'1.4rem', right:0, bottom:'1.4rem', display:'grid', gridTemplateColumns:'repeat(8,1fr)', boxShadow:'0 8px 40px rgba(0,0,0,0.6)', border:'2px solid rgba(201,168,76,0.3)', borderRadius:'2px', overflow:'hidden' }}>
+                <div key={boardKey} style={{ position:'absolute', top:0, left:'1.4rem', right:0, bottom:'1.4rem', display:'grid', gridTemplateColumns:'repeat(8,1fr)', boxShadow:'0 8px 40px rgba(0,0,0,0.6)', border:'2px solid rgba(201,168,76,0.3)', borderRadius:'2px', overflow:'hidden' }}>
                   {displayBoard.map((row, ri) =>
                     row.map((piece, ci) => {
                       const isLight     = (ri + ci) % 2 === 0
