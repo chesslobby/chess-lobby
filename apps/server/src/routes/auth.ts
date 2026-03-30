@@ -79,6 +79,46 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
     return reply.send({ token, user: safeUser(user) })
   })
 
+  // ── OAuth (Google / Facebook via Supabase) ─────────────────
+  fastify.post('/oauth', async (req, reply) => {
+    const { email, name, provider, supabaseId } = req.body as any
+    console.log('[OAuth] Request:', { email, name, provider })
+
+    if (!email) return reply.status(400).send({ error: 'Email is required' })
+
+    try {
+      let user = await prisma.user.findFirst({ where: { email } })
+      console.log('[OAuth] Existing user:', user?.id)
+
+      if (!user) {
+        let username = (name || email.split('@')[0])
+          .replace(/[^a-zA-Z0-9_]/g, '_')
+          .substring(0, 20)
+
+        const existing = await prisma.user.findFirst({ where: { username } })
+        if (existing) {
+          username = username.substring(0, 15) + '_' + Math.random().toString(36).substring(2, 5)
+        }
+
+        user = await prisma.user.create({
+          data: {
+            username,
+            email,
+            passwordHash: '',
+            isGuest: false,
+          },
+        })
+        console.log('[OAuth] Created user:', user.id, username)
+      }
+
+      const token = signToken(user.id, user.username, false)
+      return reply.status(200).send({ token, user: safeUser(user) })
+    } catch (err: any) {
+      console.error('[OAuth] Error:', err.message)
+      return reply.status(500).send({ error: 'OAuth login failed: ' + err.message })
+    }
+  })
+
   // ── Guest ──────────────────────────────────────────────────
   fastify.post('/guest', async (_req, reply) => {
     const username = `Guest_${Math.random().toString(36).substring(2, 7).toUpperCase()}`
@@ -103,45 +143,6 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       return reply.send({ user: safeUser(user) })
     } catch {
       return reply.status(401).send({ error: 'Invalid token' })
-    }
-  })
-}
-
-  // ── OAuth (Google / GitHub via Supabase) ───────────────────────
-  fastify.post('/oauth', async (req, reply) => {
-    const { email, name, provider, supabaseId } = req.body as any
-
-    if (!email) return reply.status(400).send({ error: 'Email is required' })
-
-    try {
-      let user = await prisma.user.findFirst({ where: { email } })
-
-      if (!user) {
-        const base = name?.replace(/\s+/g, '_').replace(/[^a-zA-Z0-9_]/g, '').substring(0, 20) ||
-          `Player_${Math.random().toString(36).substring(2, 7).toUpperCase()}`
-        // Ensure username is unique
-        let username = base
-        let attempt = 0
-        while (await prisma.user.findUnique({ where: { username } })) {
-          attempt++
-          username = `${base}_${attempt}`
-        }
-
-        user = await prisma.user.create({
-          data: {
-            username,
-            email,
-            passwordHash: '',
-            isGuest: false,
-          },
-        })
-      }
-
-      const token = signToken(user.id, user.username, false)
-      return reply.status(200).send({ token, user: safeUser(user) })
-    } catch (err: any) {
-      console.error('OAuth error:', err)
-      return reply.status(500).send({ error: 'OAuth login failed' })
     }
   })
 }
