@@ -342,7 +342,7 @@ export default function LobbyPage() {
         }
       `}</style>
 
-      <div style={{ display:'flex', flexDirection:'column', backgroundColor:'#0a1628', minHeight:'100vh', fontFamily:'var(--font-crimson),Georgia,serif' }}>
+      <div style={{ display:'flex', flexDirection:'column', backgroundColor:'#0a1628', fontFamily:'var(--font-crimson),Georgia,serif' }}>
 
         {/* NAVBAR */}
         <div style={{ height:'56px', background:'rgba(10,22,40,0.97)', borderBottom:'1px solid rgba(201,168,76,0.2)', display:'flex', alignItems:'center', justifyContent:'space-between', padding:'0 1.5rem', zIndex:100, position:'sticky', top:0, boxSizing:'border-box', flexShrink:0 }}>

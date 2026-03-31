@@ -950,7 +950,7 @@ Opening: ${openingName || 'Unknown'}
         .mobile-drawer-body { flex: 1; overflow-y: auto; padding: 12px; }
       `}</style>
 
-      <div suppressHydrationWarning style={{ display:'flex', flexDirection:'column', height:'100dvh', background:'#0a1628', overflow:'hidden', fontFamily:'var(--font-crimson),Georgia,serif', position:'relative' }}>
+      <div suppressHydrationWarning style={{ display:'flex', flexDirection:'column', height:'100dvh', background:'#0a1628', overflow:'hidden', fontFamily:'var(--font-crimson),Georgia,serif', position: isMobile ? 'fixed' as const : 'relative' as const, top: isMobile ? 0 : undefined, left: isMobile ? 0 : undefined, right: isMobile ? 0 : undefined, width: isMobile ? '100%' : undefined }}>
 
         {/* ── Pawn promotion dialog ─────────────────────── */}
         {showPromotion && (
@@ -1274,6 +1274,13 @@ Opening: ${openingName || 'Unknown'}
                             setValidMoves(mvs.map((m) => m.to))
                             e.dataTransfer.effectAllowed = 'move'
                             e.dataTransfer.setData('text/plain', sq)
+                            const squareSize = Math.round(e.currentTarget.getBoundingClientRect().width)
+                            const dragImg = document.createElement('div')
+                            dragImg.style.cssText = `position:fixed;top:-200px;left:-200px;width:${squareSize}px;height:${squareSize}px;display:flex;align-items:center;justify-content:center;font-size:${Math.floor(squareSize * 0.75)}px;line-height:1;pointer-events:none;background:transparent;border:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.6));`
+                            dragImg.textContent = unicode || ''
+                            document.body.appendChild(dragImg)
+                            e.dataTransfer.setDragImage(dragImg, squareSize / 2, squareSize / 2)
+                            setTimeout(() => { if (dragImg.parentNode) dragImg.parentNode.removeChild(dragImg) }, 0)
                           } : undefined}
                           onDragEnd={() => { setDragFrom(null); setDragOver(null) }}
                           onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(sq) }}
@@ -1297,7 +1304,7 @@ Opening: ${openingName || 'Unknown'}
                             if (targetSq && targetSq !== touchDragFrom) handleDragMove(touchDragFrom, targetSq)
                             setTouchDragFrom(null); setDragOver(null)
                           }}
-                          style={{ display:'flex', alignItems:'center', justifyContent:'center', background: squareBg, cursor: isMyPieceHere ? 'grab' : 'pointer', aspectRatio:'1', position:'relative', opacity: isDragFrom ? 0.5 : 1 }}>
+                          style={{ display:'flex', alignItems:'center', justifyContent:'center', background: squareBg, cursor: isMyPieceHere ? 'grab' : 'pointer', aspectRatio:'1', position:'relative', outline: isDragFrom ? '3px solid rgba(201,168,76,0.8)' : 'none', outlineOffset: '-3px' }}>
                           {/* z1: last move highlight */}
                           {isLastMoveQ && (
                             <div style={{ position:'absolute', inset:0, background:'rgba(255,255,0,0.22)', pointerEvents:'none', zIndex:1 }} />
@@ -1312,7 +1319,7 @@ Opening: ${openingName || 'Unknown'}
                           )}
                           {/* z4: chess piece — hidden while animation overlay is sliding it in */}
                           {unicode && !isAnimDest && (
-                            <span style={{ fontSize:'clamp(1.1rem,2.8vw,1.75rem)', lineHeight:1, color: isBlack ? '#1a0a00' : '#fff', textShadow: isBlack ? '0 1px 2px rgba(255,255,255,0.4)' : '0 1px 3px rgba(0,0,0,0.8)', userSelect:'none', position:'relative', zIndex:4 }}>{unicode}</span>
+                            <span className="chess-piece-emoji" style={{ fontSize:'clamp(1.1rem,2.8vw,1.75rem)', lineHeight:1, color: isBlack ? '#1a0a00' : '#fff', textShadow: isBlack ? '0 1px 2px rgba(255,255,255,0.4)' : '0 1px 3px rgba(0,0,0,0.8)', userSelect:'none', pointerEvents:'none', position:'relative', zIndex:4 }}>{unicode}</span>
                           )}
                           {/* z5: valid move dot (empty) */}
                           {isValid && !piece && (

@@ -181,7 +181,7 @@ export default function EndgamesPage() {
         .sol-box { background:rgba(34,197,94,0.08); border:1px solid rgba(34,197,94,0.25); border-radius:8px; padding:0.75rem; color:#9aa5b4; font-size:0.83rem; line-height:1.55; margin-top:0.5rem; }
       `}</style>
 
-      <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
+      <div style={{ background: '#0a1628', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
         <Navbar />
         <div style={{ maxWidth: '1100px', margin: '0 auto', padding: '1.5rem 1rem' }}>
 

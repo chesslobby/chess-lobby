@@ -349,7 +349,7 @@ export default function ProfilePage() {
         }
       `}</style>
 
-      <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
+      <div style={{ background: '#0a1628', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
         <Navbar />
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1rem' }}>
 

@@ -243,7 +243,7 @@ export default function OpeningsPage() {
         .fade-up { animation:fadeUp 0.35s ease both; }
       `}</style>
 
-      <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
+      <div style={{ background: '#0a1628', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
         <Navbar />
         <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '1.5rem 1rem' }}>
 

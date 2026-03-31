@@ -83,13 +83,17 @@ export default function Navbar() {
   }, [])
 
   useEffect(() => {
-    function onClickOutside(e: MouseEvent) {
+    function onClickOutside(e: MouseEvent | TouchEvent) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setDropdownOpen(false)
       if (learnRef.current    && !learnRef.current.contains(e.target as Node))    setLearnOpen(false)
       if (notifRef.current    && !notifRef.current.contains(e.target as Node))    setNotifOpen(false)
     }
     document.addEventListener('mousedown', onClickOutside)
-    return () => document.removeEventListener('mousedown', onClickOutside)
+    document.addEventListener('touchstart', onClickOutside as any)
+    return () => {
+      document.removeEventListener('mousedown', onClickOutside)
+      document.removeEventListener('touchstart', onClickOutside as any)
+    }
   }, [])
 
   // Listen for admin announcements via custom event from lobby socket
@@ -341,25 +345,35 @@ export default function Navbar() {
                 </button>
 
                 {dropdownOpen && (
-                  <div className="nav-dropdown dropdown-enter" style={{ position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '185px', zIndex: 200 }}>
-                    <Link href="/profile" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                      <span>👤</span> Profile
+                  <div className="nav-dropdown dropdown-enter" style={isMobile ? {
+                    position: 'fixed', top: 56, right: 8, left: 8,
+                    background: '#111e35', border: '1px solid rgba(201,168,76,0.2)',
+                    borderRadius: 12, padding: '8px 0', zIndex: 9999,
+                    boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
+                  } : {
+                    position: 'absolute', top: 'calc(100% + 8px)', right: 0, width: '220px', zIndex: 200,
+                  }}>
+                    {/* User info header */}
+                    <div style={{ padding: '12px 16px 10px', borderBottom: '1px solid rgba(201,168,76,0.1)', display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ width: 48, height: 48, borderRadius: '50%', background: 'linear-gradient(135deg, #c9a84c, #8b6914)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0a1628', fontWeight: 'bold', fontSize: '1.4rem', flexShrink: 0 }}>
+                        {(user.username || 'U')[0].toUpperCase()}
+                      </div>
+                      <div>
+                        <div style={{ color: '#e8e0d0', fontWeight: 700, fontSize: '0.9rem' }}>{user.username}</div>
+                        <div style={{ color: '#c9a84c', fontSize: '0.78rem', fontFamily: 'monospace' }}>♟ {user.eloRating || 1200}</div>
+                      </div>
+                    </div>
+                    <Link href="/profile" className="dropdown-item" style={{ minHeight: 48 }} onClick={() => setDropdownOpen(false)}>
+                      <span>👤</span> My Profile
                     </Link>
-                    <Link href="/profile" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                      <span>📜</span> Game History
+                    <Link href="/profile" className="dropdown-item" style={{ minHeight: 48 }} onClick={() => setDropdownOpen(false)}>
+                      <span>🎮</span> Game History
+                    </Link>
+                    <Link href="/profile" className="dropdown-item" style={{ minHeight: 48 }} onClick={() => setDropdownOpen(false)}>
+                      <span>📊</span> Statistics
                     </Link>
                     <div style={{ height: '1px', background: 'rgba(201,168,76,0.1)', margin: '0.2rem 0' }} />
-                    <Link href="/play-bot" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                      <span>🤖</span> Play vs Computer
-                    </Link>
-                    <Link href="/openings" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                      <span>📖</span> Opening Explorer
-                    </Link>
-                    <Link href="/endgames" className="dropdown-item" onClick={() => setDropdownOpen(false)}>
-                      <span>♟</span> Endgame Practice
-                    </Link>
-                    <div style={{ height: '1px', background: 'rgba(201,168,76,0.1)', margin: '0.2rem 0' }} />
-                    <button className="dropdown-item" style={{ color: '#ef4444' }} onClick={() => { setDropdownOpen(false); clearAuth(); window.location.href = '/' }}>
+                    <button className="dropdown-item" style={{ color: '#ef4444', minHeight: 48 }} onClick={() => { setDropdownOpen(false); clearAuth(); window.location.href = '/' }}>
                       <span>🚪</span> Sign Out
                     </button>
                   </div>

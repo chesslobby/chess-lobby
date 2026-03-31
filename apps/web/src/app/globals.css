@@ -253,9 +253,30 @@ body {
   user-select: none;
   -webkit-user-select: none;
 }
+* {
+  -webkit-user-drag: none;
+}
 [draggable=true] {
+  -webkit-user-drag: element;
   cursor: grab;
 }
 [draggable=true]:active {
   cursor: grabbing;
 }
+
+/* ── Chess piece emoji - no drag ghost from piece itself ──────── */
+.chess-piece-emoji {
+  pointer-events: none;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* ── Remove blank space on mobile ───────────────────────────── */
+@media (max-width: 768px) {
+  section { margin-bottom: 12px !important; }
+  main { padding-bottom: 16px !important; }
+}
+
+section:empty { display: none !important; }
+
+.puzzle-solved-state .board-area { display: none !important; }

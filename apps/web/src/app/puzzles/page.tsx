@@ -342,7 +342,7 @@ export default function PuzzlePage() {
         }
       `}</style>
 
-      <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
+      <div style={{ background: '#0a1628', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
         <Navbar />
         <div style={{ maxWidth: '900px', margin: '0 auto', padding: '2rem 1rem' }}>
 
@@ -378,7 +378,7 @@ export default function PuzzlePage() {
 
             {/* Board */}
             <div className="puzzle-board">
-              <div style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,.5)' }}>
+              {!solved && <div style={{ position: 'relative', width: '100%', aspectRatio: '1', borderRadius: 8, overflow: 'hidden', boxShadow: '0 4px 24px rgba(0,0,0,.5)' }}>
                 {displayBoard && displayBoard.map((rank, ri) =>
                   rank.map((piece, fi) => {
                     const isLight = (ri + fi) % 2 === 0
@@ -410,6 +410,13 @@ export default function PuzzlePage() {
                           setValidMoves(mvs.map(m => m.to))
                           e.dataTransfer.effectAllowed = 'move'
                           e.dataTransfer.setData('text/plain', sq)
+                          const squareSize = Math.round(e.currentTarget.getBoundingClientRect().width)
+                          const dragImg = document.createElement('div')
+                          dragImg.style.cssText = `position:fixed;top:-200px;left:-200px;width:${squareSize}px;height:${squareSize}px;display:flex;align-items:center;justify-content:center;font-size:${Math.floor(squareSize * 0.75)}px;line-height:1;pointer-events:none;background:transparent;border:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.6));`
+                          dragImg.textContent = (piece ? PIECES[piece] : '') || ''
+                          document.body.appendChild(dragImg)
+                          e.dataTransfer.setDragImage(dragImg, squareSize / 2, squareSize / 2)
+                          setTimeout(() => { if (dragImg.parentNode) dragImg.parentNode.removeChild(dragImg) }, 0)
                         } : undefined}
                         onDragEnd={() => { setDragFrom(null); setDragOver(null) }}
                         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(sq) }}
@@ -439,14 +446,15 @@ export default function PuzzlePage() {
                           width: '12.5%', height: '12.5%',
                           background: squareBg,
                           cursor: isDraggable ? 'grab' : solved || gaveUp ? 'default' : 'pointer',
-                          opacity: isDragFromSq ? 0.5 : 1,
+                          outline: isDragFromSq ? '3px solid rgba(201,168,76,0.8)' : 'none',
+                          outlineOffset: '-3px',
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 'clamp(1rem,2.8vw,1.8rem)', lineHeight: 1, userSelect: 'none',
                           color: piece && piece[0] === 'b' ? '#1a0a00' : '#fff',
                           textShadow: piece && piece[0] === 'b' ? '0 1px 2px rgba(255,255,255,.35)' : '0 1px 3px rgba(0,0,0,.7)',
                         }}
                       >
-                        {piece ? PIECES[piece] || '' : ''}
+                        <span className="chess-piece-emoji" style={{ pointerEvents:'none' }}>{piece ? PIECES[piece] || '' : ''}</span>
                         {isValid && !piece && (
                           <div style={{ width: '28%', height: '28%', borderRadius: '50%', background: 'rgba(201,168,76,.55)', pointerEvents: 'none' }} />
                         )}
@@ -466,7 +474,7 @@ export default function PuzzlePage() {
                   const fi = flipped ? 7 - i : i
                   return <div key={f} style={{ position: 'absolute', left: `${fi * 12.5 + 1}%`, bottom: '1%', fontSize: '.6rem', color: fi % 2 === 0 ? '#f0d9b5' : '#b58863', fontWeight: 700, pointerEvents: 'none' }}>{flipped ? FILES[7-fi] : f}</div>
                 })}
-              </div>
+              </div>}
 
               {/* Solved overlay message */}
               {solved && (

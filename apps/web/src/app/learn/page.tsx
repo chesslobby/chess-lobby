@@ -129,7 +129,7 @@ export default function LearnPage() {
         .fade-up { animation: fadeUp 0.4s ease both; }
       `}</style>
 
-      <div style={{ background: '#0a1628', minHeight: '100vh', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
+      <div style={{ background: '#0a1628', fontFamily: 'var(--font-crimson),Georgia,serif' }}>
         <Navbar />
         <div style={{ maxWidth: '960px', margin: '0 auto', padding: '2rem 1rem' }}>
 

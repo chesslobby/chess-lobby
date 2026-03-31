@@ -186,7 +186,7 @@ export default function HomePage() {
         }
       `}</style>
 
-      <main style={{ position:'relative', minHeight:'100vh', display:'flex', flexDirection:'column', alignItems:'center', backgroundColor:'#0a1628', overflow:'hidden' }}>
+      <main style={{ position:'relative', display:'flex', flexDirection:'column', alignItems:'center', backgroundColor:'#0a1628', overflow:'hidden' }}>
 
         {/* Chess pattern */}
         <div className="chess-pattern" style={{ position:'absolute', inset:0, zIndex:0 }} />

@@ -627,6 +627,13 @@ export default function PlayBotPage() {
                           setLegalTargets(mvs.map(m => m.to))
                           e.dataTransfer.effectAllowed = 'move'
                           e.dataTransfer.setData('text/plain', sq)
+                          const squareSize = Math.round(e.currentTarget.getBoundingClientRect().width)
+                          const dragImg = document.createElement('div')
+                          dragImg.style.cssText = `position:fixed;top:-200px;left:-200px;width:${squareSize}px;height:${squareSize}px;display:flex;align-items:center;justify-content:center;font-size:${Math.floor(squareSize * 0.75)}px;line-height:1;pointer-events:none;background:transparent;border:none;filter:drop-shadow(0 4px 8px rgba(0,0,0,0.6));`
+                          dragImg.textContent = pieceChar || ''
+                          document.body.appendChild(dragImg)
+                          e.dataTransfer.setDragImage(dragImg, squareSize / 2, squareSize / 2)
+                          setTimeout(() => { if (dragImg.parentNode) dragImg.parentNode.removeChild(dragImg) }, 0)
                         } : undefined}
                         onDragEnd={() => { setDragFrom(null); setDragOver(null) }}
                         onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(sq) }}
@@ -650,12 +657,12 @@ export default function PlayBotPage() {
                           if (targetSq && targetSq !== touchDragFrom) handleDragMove(touchDragFrom, targetSq)
                           setTouchDragFrom(null); setDragOver(null)
                         }}
-                        style={{ width: sqPx, height: sqPx, background: bg, outline: isHint ? '3px solid rgba(201,168,76,0.9)' : 'none', outlineOffset: '-3px', opacity: isDragFrom ? 0.5 : 1, cursor: isMyPieceHere ? 'grab' : 'default' }}>
+                        style={{ width: sqPx, height: sqPx, background: bg, outline: isDragFrom ? '3px solid rgba(201,168,76,0.8)' : isHint ? '3px solid rgba(201,168,76,0.9)' : 'none', outlineOffset: '-3px', cursor: isMyPieceHere ? 'grab' : 'default' }}>
                         {isLegal && (
                           <div style={{ position:'absolute', width: hasPiece ? '88%' : '32%', height: hasPiece ? '88%' : '32%', borderRadius:'50%', background: hasPiece ? 'transparent' : 'rgba(0,0,0,0.22)', border: hasPiece ? '3px solid rgba(0,0,0,0.28)' : 'none', zIndex:1, pointerEvents:'none' }} />
                         )}
                         {pieceChar && (
-                          <span className="piece-g" style={{ fontSize: pieceFontPx, lineHeight:1, zIndex:2, position:'relative', filter:'drop-shadow(1px 2px 2px rgba(0,0,0,0.45))', color: cell?.c === 'w' ? '#fff' : '#1a1008', WebkitTextStroke: cell?.c === 'w' ? '0.5px #555' : '0.5px #bbb' }}>
+                          <span className="piece-g chess-piece-emoji" style={{ fontSize: pieceFontPx, lineHeight:1, zIndex:2, position:'relative', filter:'drop-shadow(1px 2px 2px rgba(0,0,0,0.45))', color: cell?.c === 'w' ? '#fff' : '#1a1008', WebkitTextStroke: cell?.c === 'w' ? '0.5px #555' : '0.5px #bbb', pointerEvents:'none' }}>
                             {pieceChar}
                           </span>
                         )}
