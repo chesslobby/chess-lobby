@@ -327,13 +327,11 @@ export default function LobbyPage() {
         }
         .qcard:hover { background: #172540; transform: translateY(-2px); }
         @media (max-width: 768px) {
-          .lobby-main { flex-direction: column !important; padding: 1rem !important; gap: 1rem !important; }
-          .lobby-left { min-width: 0 !important; }
-          .lobby-right { min-height: 320px !important; }
+          .lobby-grid { grid-template-columns: 1fr !important; }
+          .lobby-main { padding: 1rem !important; gap: 0.75rem !important; }
           .time-grid { grid-template-columns: 1fr 1fr !important; }
         }
         @media (max-width: 640px) {
-          .lobby-grid { grid-template-columns: 1fr !important; }
           .quick-access-row { display: flex !important; gap: 10px !important; overflow-x: auto !important; padding-bottom: 8px !important; scrollbar-width: none !important; flex-wrap: nowrap !important; }
           .quick-access-row::-webkit-scrollbar { display: none !important; }
           .quick-access-card { min-width: 110px !important; flex-shrink: 0 !important; }
@@ -383,10 +381,10 @@ export default function LobbyPage() {
         )}
 
         {/* MAIN */}
-        <div className="lobby-main lobby-grid" style={{ flex:1, display:'flex', gap:'1.5rem', padding:'1.5rem', maxWidth:'1400px', width:'100%', margin:'0 auto', boxSizing:'border-box' }}>
+        <div className="lobby-main lobby-grid" style={{ flex:1, display:'grid', gridTemplateColumns:'1fr 320px', gap:'1rem', padding:'1rem 1.5rem', maxWidth:'1400px', width:'100%', margin:'0 auto', boxSizing:'border-box', alignItems:'start' }}>
 
           {/* LEFT COLUMN */}
-          <div className="lobby-left" style={{ flex:1.5, display:'flex', flexDirection:'column', gap:'1.5rem', minWidth:0 }}>
+          <div className="lobby-left" style={{ display:'flex', flexDirection:'column', gap:'1rem', minWidth:0 }}>
 
             {/* Daily Puzzle Teaser */}
             <Link href="/puzzles" className="puzzle-teaser">
@@ -410,7 +408,7 @@ export default function LobbyPage() {
 
             {/* Quick Play */}
             <div>
-              <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem', marginBottom:'0.75rem' }}>
+              <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem', marginBottom:'0.5rem' }}>
                 <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.2rem', color:'#e8e0d0', margin:0 }}>Quick Play</h2>
               </div>
 
@@ -460,7 +458,7 @@ export default function LobbyPage() {
 
             {/* Private Room */}
             <div>
-              <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem', marginBottom:'0.75rem' }}>
+              <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem', marginBottom:'0.5rem' }}>
                 <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.2rem', color:'#e8e0d0', margin:0 }}>Private Room</h2>
               </div>
               <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', padding:'1.25rem' }}>
@@ -491,52 +489,9 @@ export default function LobbyPage() {
               </div>
             </div>
 
-            {/* Live Games */}
-            <div>
-              <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem', marginBottom:'0.75rem', display:'flex', alignItems:'center', gap:'0.6rem' }}>
-                <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.2rem', color:'#e8e0d0', margin:0 }}>Live Games</h2>
-                {liveGames.length > 0 && (
-                  <span style={{ background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#ef4444', padding:'0.1rem 0.5rem', borderRadius:'999px', fontSize:'0.7rem' }}>
-                    {liveGames.length} live
-                  </span>
-                )}
-              </div>
-
-              {liveGames.length === 0 ? (
-                <div style={{ background:'rgba(255,255,255,0.02)', border:'1px dashed rgba(201,168,76,0.2)', borderRadius:'10px', padding:'2rem', textAlign:'center', color:'#4a5568', fontSize:'0.88rem' }}>
-                  No live games right now
-                  <div style={{ fontSize:'0.78rem', marginTop:'0.3rem', color:'#374151' }}>Be the first to start a match!</div>
-                </div>
-              ) : (
-                liveGames.map((g: any) => (
-                  <div key={g.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:'10px', padding:'0.9rem 1.1rem', marginBottom:'0.6rem', gap:'0.75rem' }}>
-                    <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ fontSize:'0.88rem', color:'#e8e0d0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                        {g.whitePlayer?.username} <span style={{ color:'#4a5568' }}>({g.whitePlayer?.eloRating})</span>
-                        {' vs '}
-                        {g.blackPlayer?.username} <span style={{ color:'#4a5568' }}>({g.blackPlayer?.eloRating})</span>
-                      </div>
-                      {g._count?.spectators > 0 && (
-                        <div style={{ fontSize:'0.72rem', color:'#4a5568', marginTop:'0.15rem' }}>👁 {g._count.spectators} watching</div>
-                      )}
-                    </div>
-                    <span style={{ border:'1px solid rgba(201,168,76,0.3)', background:'rgba(201,168,76,0.07)', color:'#c9a84c', padding:'0.2rem 0.6rem', borderRadius:'999px', fontSize:'0.75rem', whiteSpace:'nowrap' }}>
-                      ⚡ {g.timeControl}s
-                    </span>
-                    <button onClick={() => { window.location.href = '/spectate?gameId=' + g.id }} style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.3rem 0.85rem', borderRadius:'6px', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
-                      👁 Watch
-                    </button>
-                  </div>
-                ))
-              )}
-            </div>
-
-            {/* Ad — between Live Games and Quick Access */}
-            <AdUnit slot="1234567890" format="horizontal" style={{ margin: '4px 0 12px', minHeight: 90 }} />
-
             {/* Quick Access */}
             <div>
-              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.6rem' }}>
+              <div style={{ display:'flex', alignItems:'center', justifyContent:'space-between', marginBottom:'0.5rem' }}>
                 <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem' }}>
                   <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.1rem', color:'#e8e0d0', margin:0 }}>Quick Access</h2>
                 </div>
@@ -564,10 +519,47 @@ export default function LobbyPage() {
                 ))}
               </div>
             </div>
+
+            {/* Live Games — only render when games exist */}
+            {liveGames.length > 0 && (
+              <div>
+                <div style={{ borderLeft:'3px solid #c9a84c', paddingLeft:'0.75rem', marginBottom:'0.5rem', display:'flex', alignItems:'center', gap:'0.6rem' }}>
+                  <h2 style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.2rem', color:'#e8e0d0', margin:0 }}>Live Games</h2>
+                  <span style={{ background:'rgba(239,68,68,0.15)', border:'1px solid rgba(239,68,68,0.3)', color:'#ef4444', padding:'0.1rem 0.5rem', borderRadius:'999px', fontSize:'0.7rem' }}>
+                    {liveGames.length} live
+                  </span>
+                </div>
+                {liveGames.map((g: any) => (
+                  <div key={g.id} style={{ display:'flex', alignItems:'center', justifyContent:'space-between', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.15)', borderRadius:'10px', padding:'0.75rem 1rem', marginBottom:'0.5rem', gap:'0.75rem' }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontSize:'0.88rem', color:'#e8e0d0', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {g.whitePlayer?.username} <span style={{ color:'#4a5568' }}>({g.whitePlayer?.eloRating})</span>
+                        {' vs '}
+                        {g.blackPlayer?.username} <span style={{ color:'#4a5568' }}>({g.blackPlayer?.eloRating})</span>
+                      </div>
+                      {g._count?.spectators > 0 && (
+                        <div style={{ fontSize:'0.72rem', color:'#4a5568', marginTop:'0.1rem' }}>👁 {g._count.spectators} watching</div>
+                      )}
+                    </div>
+                    <span style={{ border:'1px solid rgba(201,168,76,0.3)', background:'rgba(201,168,76,0.07)', color:'#c9a84c', padding:'0.2rem 0.5rem', borderRadius:'999px', fontSize:'0.75rem', whiteSpace:'nowrap' }}>
+                      ⚡ {g.timeControl}s
+                    </span>
+                    <button onClick={() => { (globalThis as any).location.href = '/spectate?gameId=' + g.id }} style={{ border:'1px solid rgba(201,168,76,0.4)', background:'transparent', color:'#c9a84c', padding:'0.25rem 0.75rem', borderRadius:'6px', fontSize:'0.82rem', cursor:'pointer', fontFamily:'var(--font-crimson),Georgia,serif' }}>
+                      👁 Watch
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Ad — only shown when live games exist so it doesn't float alone */}
+            {liveGames.length > 0 && (
+              <AdUnit slot="1234567890" format="horizontal" style={{ margin: '0', minHeight: 90 }} />
+            )}
           </div>
 
           {/* RIGHT COLUMN */}
-          <div className="lobby-right" style={{ flex:1, display:'flex', flexDirection:'column', gap:'1rem', minWidth:0 }}>
+          <div className="lobby-right" style={{ display:'flex', flexDirection:'column', gap:'1rem', minWidth:0 }}>
 
             {/* Friends Online */}
             <div style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden' }}>
@@ -609,7 +601,7 @@ export default function LobbyPage() {
             </div>
 
             {/* Lobby Chat */}
-            <div className="lobby-chat" style={{ flex:1, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden', minHeight:'360px', position:'relative' }}>
+            <div className="lobby-chat" style={{ flex:1, display:'flex', flexDirection:'column', background:'rgba(255,255,255,0.04)', border:'1px solid rgba(201,168,76,0.2)', borderRadius:'12px', overflow:'hidden', minHeight:'280px', position:'relative' }}>
               <div style={{ padding:'0.9rem 1.1rem', borderBottom:'1px solid rgba(201,168,76,0.15)', display:'flex', alignItems:'center', gap:'0.5rem', flexShrink:0 }}>
                 <span style={{ fontFamily:'var(--font-playfair),Georgia,serif', color:'#e8e0d0', fontSize:'1rem', fontWeight:700 }}>Lobby Chat</span>
                 <span style={{ color:'#22c55e', fontSize:'0.7rem' }}>●</span>
