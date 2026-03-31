@@ -319,10 +319,10 @@ export default function Navbar() {
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                 >
                   <div
-                    className="avatar-ring"
-                    style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1.5px solid rgba(201,168,76,0.35)', color: '#c9a84c', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-playfair), Georgia, serif', transition: 'border-color 0.2s, box-shadow 0.2s', flexShrink: 0 }}
+                    className="nav-avatar"
+                    style={{ width: '36px', height: '36px', minWidth: '36px', minHeight: '36px', maxWidth: '36px', maxHeight: '36px', borderRadius: '50%', background: 'linear-gradient(135deg, #c9a84c, #8b6914)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#0a1628', fontWeight: 'bold', fontSize: '1rem', flexShrink: 0, flexGrow: 0, overflow: 'hidden', boxSizing: 'border-box', aspectRatio: '1 / 1' }}
                   >
-                    {(user.username?.[0] || 'G').toUpperCase()}
+                    {(user.username || 'U')[0].toUpperCase()}
                   </div>
                   {!isMobile && (
                     <div style={{ textAlign: 'left', display: 'flex', flexDirection: 'column', gap: '1px' }}>

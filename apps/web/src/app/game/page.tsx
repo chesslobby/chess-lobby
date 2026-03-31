@@ -120,6 +120,7 @@ export default function GamePage() {
   const [isMobile, setIsMobile]       = useState(false)
   const [showLeftPanel, setShowLeftPanel] = useState(true)
   const [showChatDrawer, setShowChatDrawer] = useState(false)
+  const [mobileTab, setMobileTab] = useState<'moves'|'chat'|'voice'|null>(null)
 
   // Connection status
   const [socketConnected, setSocketConnected] = useState(false)
@@ -916,15 +917,16 @@ Opening: ${openingName || 'Unknown'}
           .game-clock { font-size: 1.1rem !important; }
           .board-controls { display: none !important; }
           .mobile-tab-bar { display: flex !important; }
+          .mobile-drawer { display: none; }
+          .mobile-drawer.open { display: flex !important; }
         }
         .mobile-tab-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: #111e35; border-top: 1px solid rgba(201,168,76,0.2); z-index: 100; justify-content: stretch; }
         .mobile-tab-btn { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; background: none; border: none; color: #6b7a8d; font-size: 0.7rem; gap: 2px; cursor: pointer; transition: color 0.2s; }
         .mobile-tab-btn.active { color: #c9a84c; }
         .mobile-tab-btn span:first-child { font-size: 1.1rem; }
-        .mobile-drawer { display: none; position: fixed; bottom: 56px; left: 0; right: 0; height: 50vh; background: #0d1f3c; border-top: 1px solid rgba(201,168,76,0.2); z-index: 99; flex-direction: column; overflow: hidden; }
-        .mobile-drawer.open { display: flex; }
+        .mobile-drawer { display: none; position: fixed; bottom: 56px; left: 0; right: 0; height: 50vh; background: #0d1f3c; border-top: 2px solid rgba(201,168,76,0.3); z-index: 99; flex-direction: column; overflow: hidden; }
         .mobile-drawer-header { display: flex; align-items: center; justify-content: space-between; padding: 10px 16px; border-bottom: 1px solid rgba(255,255,255,0.08); flex-shrink: 0; }
-        .mobile-drawer-body { flex: 1; overflow-y: auto; padding: 8px; }
+        .mobile-drawer-body { flex: 1; overflow-y: auto; padding: 12px; }
       `}</style>
 
       <div suppressHydrationWarning style={{ display:'flex', flexDirection:'column', height:'100dvh', background:'#0a1628', overflow:'hidden', fontFamily:'var(--font-crimson),Georgia,serif', position:'relative' }}>
@@ -1095,11 +1097,14 @@ Opening: ${openingName || 'Unknown'}
           </div>
         )}
 
-        {/* ── Mobile bar ─────────────────────────────────── */}
-        <div className="mobile-bar" style={{ padding:'0.4rem 0.75rem', background:'rgba(10,22,40,0.8)', borderBottom:'1px solid rgba(201,168,76,0.1)', gap:'0.5rem', flexShrink:0 }}>
-          <button onClick={() => { setShowLeftPanel(p => !p); setShowChatDrawer(false) }} style={{ background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#c9a84c', padding:'0.3rem 0.7rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer' }}>📋 Moves</button>
-          <button onClick={() => { setShowChatDrawer(p => !p); setShowLeftPanel(false) }} style={{ background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#c9a84c', padding:'0.3rem 0.7rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer' }}>💬 Chat</button>
-          <button onClick={() => setBoardFlipped(p => !p)} style={{ background:'rgba(201,168,76,0.1)', border:'1px solid rgba(201,168,76,0.3)', color:'#c9a84c', padding:'0.3rem 0.7rem', borderRadius:'6px', fontSize:'0.78rem', cursor:'pointer' }}>🔄 Flip</button>
+        {/* ── Mobile tab bar ─────────────────────────────── */}
+        <div className="mobile-tab-bar">
+          {(['moves','chat','voice'] as const).map(tab => (
+            <button key={tab} className={`mobile-tab-btn${mobileTab === tab ? ' active' : ''}`} onClick={() => setMobileTab(mobileTab === tab ? null : tab)}>
+              <span>{tab === 'moves' ? '♟' : tab === 'chat' ? '💬' : '🎙'}</span>
+              <span>{tab.charAt(0).toUpperCase() + tab.slice(1)}</span>
+            </button>
+          ))}
         </div>
 
         {/* ── Main area ─────────────────────────────────── */}
@@ -1195,14 +1200,14 @@ Opening: ${openingName || 'Unknown'}
           </div>
 
           {/* Center panel — board */}
-          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center', padding:'0.75rem', minWidth:0, overflow:'hidden' }}>
+          <div style={{ flex:1, display:'flex', flexDirection:'column', alignItems:'center', justifyContent: isMobile ? 'flex-start' : 'center', padding: isMobile ? '0' : '0.75rem', minWidth:0, overflow:'hidden' }}>
 
             {/* Theme switcher */}
-            <div style={{ marginBottom:'0.5rem', display:'flex', gap:'0.4rem' }}>
+            {!isMobile && <div style={{ marginBottom:'0.5rem', display:'flex', gap:'0.4rem' }}>
               {THEMES.map((t, idx) => (
                 <div key={idx} onClick={() => setBoardTheme(idx)} style={{ width:'20px', height:'20px', borderRadius:'50%', cursor:'pointer', background:`linear-gradient(135deg,${t.light} 50%,${t.dark} 50%)`, border: boardTheme === idx ? '2px solid #c9a84c' : '2px solid transparent', transition:'border 0.15s', flexShrink:0 }} />
               ))}
-            </div>
+            </div>}
 
             {/* Board */}
             <div className="board-size game-board-wrap" style={{ position:'relative', width:'min(calc(100dvh - 152px), calc(100vw - 480px))', maxWidth:'580px', aspectRatio:'1', flexShrink:0 }}>
@@ -1301,9 +1306,9 @@ Opening: ${openingName || 'Unknown'}
               </div>
             </div>
 
-            <div style={{ marginTop:'0.35rem', fontSize:'0.68rem', color:'rgba(201,168,76,0.35)', letterSpacing:'0.04em', textAlign:'center' }}>
+            {!isMobile && <div style={{ marginTop:'0.35rem', fontSize:'0.68rem', color:'rgba(201,168,76,0.35)', letterSpacing:'0.04em', textAlign:'center' }}>
               ESC to deselect · F to flip board
-            </div>
+            </div>}
           </div>
 
           {/* Right panel — chat/voice */}
@@ -1485,6 +1490,63 @@ Opening: ${openingName || 'Unknown'}
                   <button onClick={() => { voiceStartedRef.current = true; startVoice() }} style={{ padding:'10px 24px', background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:8, fontWeight:'bold', cursor:'pointer', fontSize:'0.9rem', marginTop:4 }}>
                     🎤 Join Voice Chat
                   </button>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Mobile drawer ─────────────────────────────── */}
+        <div className={`mobile-drawer${mobileTab ? ' open' : ''}`}>
+          <div className="mobile-drawer-header">
+            <span style={{ color:'#c9a84c', fontSize:'0.85rem', fontWeight:600 }}>
+              {mobileTab === 'moves' ? '♟ Moves' : mobileTab === 'chat' ? '💬 Chat' : '🎙 Voice'}
+            </span>
+            <button onClick={() => setMobileTab(null)} style={{ background:'none', border:'none', color:'#6b7a8d', fontSize:'1.1rem', cursor:'pointer' }}>✕</button>
+          </div>
+          <div className="mobile-drawer-body">
+            {mobileTab === 'moves' && (
+              <div>
+                {moveHistory.map((m, i) => (
+                  <div key={i} style={{ display:'flex', gap:'0.2rem', padding:'0.18rem 0.25rem', fontSize:'0.85rem', background: i % 2 === 0 ? 'rgba(255,255,255,0.02)' : 'transparent', fontFamily:'monospace' }}>
+                    <span style={{ color:'#4a5568', width:'1.5rem', flexShrink:0 }}>{m.n}.</span>
+                    <span style={{ color:'#e8e0d0', flex:1 }}>{m.w}</span>
+                    <span style={{ color:'#9aa5b4', flex:1 }}>{m.b}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+            {mobileTab === 'chat' && (
+              <div style={{ height:'100%', display:'flex', flexDirection:'column' }}>
+                <div style={{ flex:1, overflowY:'auto', marginBottom:8, display:'flex', flexDirection:'column', gap:4 }}>
+                  {messages.map((m, i) => (
+                    <div key={i} style={{ fontSize:'0.9rem', color: m.system ? '#4a5568' : m.self ? '#c9a84c' : '#e8e0d0' }}>
+                      {m.system ? <em>{m.text}</em> : <><strong style={{ color:'#c9a84c' }}>{m.sender}: </strong>{m.text}</>}
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display:'flex', gap:8, flexShrink:0 }}>
+                  <input value={chatInput} onChange={e => setChatInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && sendMessage()} placeholder="Type message..." style={{ flex:1, minWidth:0, padding:'8px', background:'rgba(255,255,255,0.08)', border:'1px solid rgba(201,168,76,0.3)', borderRadius:6, color:'#e8e0d0', fontSize:'16px', outline:'none' }} />
+                  <button onClick={sendMessage} style={{ flexShrink:0, padding:'8px 16px', background:'#c9a84c', color:'#0a1628', border:'none', borderRadius:6, fontWeight:'bold', cursor:'pointer' }}>Send</button>
+                </div>
+              </div>
+            )}
+            {mobileTab === 'voice' && (
+              <div style={{ textAlign:'center', paddingTop:20 }}>
+                <div style={{ fontSize:'2.5rem', marginBottom:8, color: voiceState === 'connected' ? '#27ae60' : '#6b7a8d' }}>🎙</div>
+                <div style={{ color: voiceState === 'connected' ? '#27ae60' : '#6b7a8d', marginBottom:16 }}>
+                  {voiceState === 'connected' ? '● Voice Connected' : voiceState === 'connecting' ? 'Connecting...' : voiceState === 'error' ? 'Mic access denied' : 'Voice idle'}
+                </div>
+                {(voiceState === 'idle' || voiceState === 'error') && (
+                  <button onClick={() => { voiceStartedRef.current = true; startVoice() }} style={{ padding:'10px 24px', background:'linear-gradient(135deg,#e8c97a 0%,#c9a84c 55%,#a07828 100%)', color:'#0a1628', border:'none', borderRadius:8, fontWeight:'bold', cursor:'pointer' }}>
+                    🎤 Join Voice Chat
+                  </button>
+                )}
+                {voiceState === 'connected' && (
+                  <div style={{ display:'flex', gap:12, justifyContent:'center' }}>
+                    <button onClick={toggleMute} style={{ padding:'10px 16px', background: isMuted ? '#8b1a1a' : '#1a2e4a', border:`1px solid ${isMuted ? '#c9353e' : '#3a4560'}`, borderRadius:8, color: isMuted ? '#ff6b6b' : '#c9a84c', fontSize:'1.2rem', cursor:'pointer' }}>{isMuted ? '🔇' : '🎤'}</button>
+                    <button onClick={toggleDeafen} style={{ padding:'10px 16px', background: isDeafened ? '#8b1a1a' : '#1a2e4a', border:`1px solid ${isDeafened ? '#c9353e' : '#3a4560'}`, borderRadius:8, color: isDeafened ? '#ff6b6b' : '#c9a84c', fontSize:'1.2rem', cursor:'pointer' }}>{isDeafened ? '🔕' : '🔊'}</button>
+                  </div>
                 )}
               </div>
             )}

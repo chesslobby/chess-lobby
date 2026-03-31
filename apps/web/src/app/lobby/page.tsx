@@ -668,10 +668,10 @@ export default function LobbyPage() {
                 </div>
               )}
 
-              <div style={{ padding:'0.6rem 0.75rem', borderTop:'1px solid rgba(201,168,76,0.15)', display:'flex', gap:'0.4rem', flexShrink:0 }}>
-                <button onClick={() => setShowEmojiPicker(p => !p)} style={{ background: showEmojiPicker ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,.04)', border:'1px solid rgba(201,168,76,.2)', color:'#c9a84c', borderRadius:6, padding:'0 0.55rem', fontSize:'1rem', cursor:'pointer', flexShrink:0, lineHeight:1 }}>😀</button>
-                <input className={`input-field${chatFocused ? ' focused' : ''}`} type="text" placeholder="Say something..." value={chatInput} onChange={e => setChatInput(e.target.value)} onFocus={() => setChatFocused(true)} onBlur={() => { setChatFocused(false); setTimeout(() => setShowEmojiPicker(false), 200) }} onKeyDown={e => { if (e.key === 'Enter') handleSendChat() }} style={{ flex:1, padding:'0.5rem 0.75rem', fontSize:'0.88rem' }} />
-                <button onClick={handleSendChat} style={{ background:'#c9a84c', color:'#0a1628', border:'none', padding:'0.5rem 0.9rem', borderRadius:'6px', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'0.88rem', flexShrink:0 }}>Send</button>
+              <div style={{ display:'flex', gap:6, padding:'8px', borderTop:'1px solid rgba(201,168,76,0.15)', alignItems:'center', width:'100%', boxSizing:'border-box', flexShrink:0 }}>
+                <button onClick={() => setShowEmojiPicker(p => !p)} style={{ flexShrink:0, width:36, height:36, minWidth:36, borderRadius:'50%', background: showEmojiPicker ? 'rgba(201,168,76,.15)' : 'rgba(255,255,255,0.06)', border:'1px solid rgba(201,168,76,.2)', color:'#c9a84c', cursor:'pointer', fontSize:'1.1rem', display:'flex', alignItems:'center', justifyContent:'center' }}>😊</button>
+                <input className={`input-field${chatFocused ? ' focused' : ''}`} type="text" placeholder="Say something..." value={chatInput} onChange={e => setChatInput(e.target.value)} onFocus={() => setChatFocused(true)} onBlur={() => { setChatFocused(false); setTimeout(() => setShowEmojiPicker(false), 200) }} onKeyDown={e => { if (e.key === 'Enter') handleSendChat() }} style={{ flex:1, minWidth:0, padding:'8px 10px', background:'rgba(255,255,255,0.06)', border:'1px solid rgba(255,255,255,0.1)', borderRadius:20, color:'#e8e0d0', fontSize:'16px', outline:'none' }} />
+                <button onClick={handleSendChat} style={{ flexShrink:0, padding:'8px 14px', background:'#c9a84c', color:'#0a1628', border:'none', borderRadius:20, fontWeight:'bold', cursor:'pointer', fontSize:'0.9rem', whiteSpace:'nowrap' }}>Send</button>
               </div>
             </div>
 

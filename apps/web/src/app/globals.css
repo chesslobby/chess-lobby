@@ -224,3 +224,26 @@ body {
 .scroll-x::-webkit-scrollbar {
   display: none;
 }
+
+.nav-avatar {
+  width: 36px !important;
+  height: 36px !important;
+  min-width: 36px !important;
+  min-height: 36px !important;
+  max-width: 36px !important;
+  max-height: 36px !important;
+  border-radius: 50% !important;
+  aspect-ratio: 1 / 1 !important;
+  flex-shrink: 0 !important;
+  overflow: hidden !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+.lobby-chat-input-row {
+  display: flex;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: hidden;
+}
