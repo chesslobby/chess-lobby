@@ -61,6 +61,7 @@ export default function PuzzleRushPage() {
   const [validMoves, setValidMoves] = useState([])
   const [flashSq, setFlashSq] = useState(null)
   const [flashColor, setFlashColor] = useState(null)
+  const [wrongMsg, setWrongMsg] = useState('')
   const [bestScore, setBestScore] = useState(0)
   const timerRef = useRef(null)
 
@@ -142,8 +143,11 @@ export default function PuzzleRushPage() {
         setValidMoves(moves.map(m => m.to))
       } else {
         flash(sq, 'red')
+        const correctSan = currentMove.slice(0, 2) + '-' + currentMove.slice(2, 4)
         const newMistakes = mistakes + 1
         setMistakes(newMistakes)
+        setWrongMsg(`Wrong! Move the piece on ${currentMove.slice(0, 2)}`)
+        setTimeout(() => setWrongMsg(''), 1800)
         if (newMistakes >= 3) {
           clearInterval(timerRef.current)
           setPhase('ended')
@@ -160,6 +164,7 @@ export default function PuzzleRushPage() {
           setBoard(parseFen(chess.fen()))
           flash(sq, 'green')
           setSelected(null); setValidMoves([])
+          setWrongMsg('')
 
           const nextIdx = moveIdx + 1
           if (nextIdx >= puzzle.moves.length) {
@@ -185,6 +190,8 @@ export default function PuzzleRushPage() {
         setSelected(null); setValidMoves([])
         const newMistakes = mistakes + 1
         setMistakes(newMistakes)
+        setWrongMsg(`Wrong! Correct: ${expectedFrom}→${expectedTo}`)
+        setTimeout(() => setWrongMsg(''), 1800)
         if (newMistakes >= 3) {
           clearInterval(timerRef.current)
           setPhase('ended')
@@ -302,6 +309,12 @@ export default function PuzzleRushPage() {
                     })
                   )}
                 </div>
+                {phase === 'playing' && wrongMsg && (
+                  <div style={{ marginTop: '.6rem', padding: '.6rem 1rem', background: 'rgba(239,68,68,.1)', border: '1px solid rgba(239,68,68,.3)', borderRadius: 8, color: '#ef4444', fontSize: '.88rem', textAlign: 'center' }}>
+                    {wrongMsg}
+                  </div>
+                )}
+
                 {phase === 'ended' && (
                   <div style={{ marginTop: '1rem', padding: '1.25rem', background: 'rgba(201,168,76,.07)', border: '1px solid rgba(201,168,76,.25)', borderRadius: 12, textAlign: 'center' }}>
                     <div style={{ fontSize: '2.5rem', marginBottom: '.5rem' }}>{score >= 10 ? '🏆' : score >= 5 ? '🥈' : '🧩'}</div>

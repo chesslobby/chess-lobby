@@ -59,6 +59,9 @@ export default function LobbyPage() {
   // Admin announcement banner
   const [announcement, setAnnouncement] = useState('')
 
+  // Challenge toast
+  const [challengeToast, setChallengeToast] = useState('')
+
   // Friends online (mock)
   const [friendsOnline] = useState([
     { username: 'Magnus_C',   elo: 2200, status: 'In a game',    online: true  },
@@ -92,8 +95,11 @@ export default function LobbyPage() {
     async function fetchLiveGames() {
       try {
         const res = await fetch(`${process.env.NEXT_PUBLIC_SERVER_URL || 'http://localhost:4000'}/games/live`)
-        const data = await res.json()
-        setLiveGames(data.games || [])
+        const data: any = await res.json()
+        const ongoing = (data.games || data || [])
+          .filter((g: any) => g.status === 'ONGOING' || !g.status)
+          .slice(0, 5)
+        setLiveGames(ongoing)
       } catch {}
     }
     fetchLiveGames()
@@ -192,6 +198,19 @@ export default function LobbyPage() {
     getSocket().emit('room:join', { code: joinCode.trim().toUpperCase(), eloRating: user?.eloRating || 1200 })
   }
 
+  async function challengeFriend(username: string) {
+    const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase()
+    const challengeLink = `${window.location.origin}/lobby?room=${roomCode}`
+    try {
+      await navigator.clipboard.writeText(challengeLink)
+      setChallengeToast(`Challenge link copied! Send to ${username}`)
+    } catch {
+      prompt('Copy this challenge link:', challengeLink)
+      setChallengeToast(`Share this link with ${username}`)
+    }
+    setTimeout(() => setChallengeToast(''), 3500)
+  }
+
   function copyCode() {
     if (!generatedCode) return
     navigator.clipboard.writeText(generatedCode).then(() => {
@@ -246,6 +265,18 @@ export default function LobbyPage() {
         .chat-scroll::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.2); border-radius: 2px; }
         @keyframes spin { to { transform: rotate(360deg); } }
 
+        .chat-pill {
+          background: rgba(201,168,76,.08);
+          border: 1px solid rgba(201,168,76,.2);
+          color: #9aa5b4;
+          border-radius: 999px;
+          padding: 0.15rem 0.6rem;
+          font-size: 0.72rem;
+          cursor: pointer;
+          font-family: var(--font-crimson), Georgia, serif;
+          transition: all .15s;
+        }
+        .chat-pill:hover { background: rgba(201,168,76,.15); color: #c9a84c; }
         .puzzle-teaser {
           background: rgba(201,168,76,0.05);
           border: 1px solid rgba(201,168,76,0.25);
@@ -563,7 +594,7 @@ export default function LobbyPage() {
                     </div>
                     {f.online && (
                       <button
-                        onClick={() => { getSocket().emit('room:create', { timeControl: selectedTime || 600 }); setStatusMsg(`Challenge sent to ${f.username}!`) }}
+                        onClick={() => challengeFriend(f.username)}
                         style={{ background:'transparent', border:'1px solid rgba(201,168,76,.35)', color:'#c9a84c', borderRadius:5, padding:'0.2rem 0.55rem', fontSize:'0.72rem', cursor:'pointer', flexShrink:0, fontFamily:'var(--font-crimson),Georgia,serif' }}
                       >Challenge</button>
                     )}
@@ -597,7 +628,22 @@ export default function LobbyPage() {
                 </div>
               </div>
 
+              {/* Quick message pills */}
+              <div style={{ padding:'0.4rem 0.75rem 0', display:'flex', gap:'0.4rem', flexWrap:'wrap', flexShrink:0 }}>
+                {['👋 Hello!', 'GG!', 'Anyone want to play?', '♟ Chess!'].map(pill => (
+                  <button key={pill} className="chat-pill" onClick={() => { setChatInput(pill) }}>
+                    {pill}
+                  </button>
+                ))}
+              </div>
+
               <div ref={chatScrollRef} className="chat-scroll" style={{ flex:1, overflowY:'auto', padding:'0.6rem 1rem', display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+                {messages.length === 0 && (
+                  <div style={{ textAlign:'center', padding:'1.5rem 0.5rem', color:'#4a5568', fontSize:'0.85rem' }}>
+                    <div style={{ fontSize:'1.4rem', marginBottom:'0.4rem' }}>👋</div>
+                    Welcome to Chess Lobby! Say hello to other players.
+                  </div>
+                )}
                 {messages.map((msg, i) => (
                   <div key={i}>
                     {msg.isSystem ? (
@@ -643,6 +689,13 @@ export default function LobbyPage() {
           </div>
         </div>
       </div>
+
+      {/* Challenge toast */}
+      {challengeToast && (
+        <div style={{ position:'fixed', bottom:24, left:'50%', transform:'translateX(-50%)', background:'#27ae60', color:'white', padding:'12px 24px', borderRadius:8, fontWeight:'bold', zIndex:1000, boxShadow:'0 4px 16px rgba(0,0,0,0.3)', fontSize:'0.9rem', whiteSpace:'nowrap' }}>
+          ✅ {challengeToast}
+        </div>
+      )}
     </>
   )
 }

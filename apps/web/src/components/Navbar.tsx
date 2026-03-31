@@ -40,9 +40,19 @@ export default function Navbar() {
   const pathname    = usePathname()
 
   function refreshAuth() {
-    const logged = isLoggedIn()
-    setLoggedIn(logged)
-    setUser(logged ? getUser() : null)
+    const token = typeof window !== 'undefined' ? localStorage.getItem('chess_token') : null
+    const stored = typeof window !== 'undefined' ? localStorage.getItem('chess_user') : null
+    if (token && stored) {
+      try {
+        const parsed = JSON.parse(stored)
+        if (parsed) { setLoggedIn(true); setUser(parsed); return }
+      } catch {
+        // Corrupt user data — clear it so user can re-login cleanly
+        localStorage.removeItem('chess_user')
+      }
+    }
+    setLoggedIn(false)
+    setUser(null)
   }
 
   useEffect(() => {
@@ -225,8 +235,8 @@ export default function Navbar() {
           transition: 'box-shadow 0.3s',
         }}>
 
-          {/* Logo → / */}
-          <Link href="/" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', flexShrink: 0 }}>
+          {/* Logo → /lobby if logged in, / otherwise */}
+          <Link href={loggedIn ? '/lobby' : '/'} style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', textDecoration: 'none', flexShrink: 0 }}>
             <span style={{ fontSize: '1.4rem', color: '#c9a84c', filter: 'drop-shadow(0 0 6px rgba(201,168,76,0.5))', lineHeight: 1 }}>♛</span>
             <span style={{
               fontFamily: 'var(--font-playfair), Georgia, serif', fontSize: '1.1rem', letterSpacing: '0.05em',
