@@ -151,6 +151,7 @@ export default function LobbyPage() {
     })
 
     socket.on('lobby:chat:receive', ({ senderName, message }: any) => {
+      if (senderName === user?.username) return
       const now = new Date()
       const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}`
       setMessages(prev => [...prev, { user: senderName, text: message, time: timeStr, isSystem: false }])
@@ -482,9 +483,9 @@ export default function LobbyPage() {
                   </div>
                 )}
 
-                <div style={{ display:'flex', gap:'0.75rem' }}>
-                  <input className={`input-field${joinFocused ? ' focused' : ''}`} type="text" placeholder="Enter 6-letter code" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} onFocus={() => setJoinFocused(true)} onBlur={() => setJoinFocused(false)} maxLength={6} style={{ flex:1 }} />
-                  <button onClick={handleJoinRoom} style={{ background:'transparent', color:'#c9a84c', border:'1.5px solid #c9a84c', borderRadius:'8px', padding:'0 1.5rem', fontSize:'0.92rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif', whiteSpace:'nowrap' }}>Join</button>
+                <div style={{ display:'flex', gap:'0.5rem' }}>
+                  <input className={`input-field${joinFocused ? ' focused' : ''}`} type="text" placeholder="Enter 6-letter code" value={joinCode} onChange={e => setJoinCode(e.target.value.toUpperCase())} onFocus={() => setJoinFocused(true)} onBlur={() => setJoinFocused(false)} maxLength={6} style={{ flex:1, minWidth:0 }} />
+                  <button onClick={handleJoinRoom} style={{ background:'transparent', color:'#c9a84c', border:'1.5px solid #c9a84c', borderRadius:'8px', padding:'0 1.25rem', fontSize:'0.92rem', fontWeight:700, cursor:'pointer', fontFamily:'var(--font-playfair),Georgia,serif', whiteSpace:'nowrap', flexShrink:0 }}>Join</button>
                 </div>
               </div>
             </div>

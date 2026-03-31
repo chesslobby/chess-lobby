@@ -41,11 +41,6 @@ const HOW_IT_WORKS = [
   { icon: '🎙️', title: 'Chat & Voice',        desc: 'Talk trash or make friends — in-game chat and voice built right in.' },
 ]
 
-const STATS = [
-  { value: '1,200+', label: 'Games Played' },
-  { value: '500+',   label: 'Players'       },
-  { value: '3',      label: 'Platforms'     },
-]
 
 export default function HomePage() {
   const [liveCount, setLiveCount] = useState<number | null>(null)
@@ -258,15 +253,6 @@ export default function HomePage() {
           </p>
         </div>
 
-        {/* ── Stats row ──────────────────────────────────── */}
-        <div className="fade-in-5 stats-row" style={{ position:'relative', zIndex:2, display:'flex', gap:'0', width:'100%', maxWidth:'600px', padding:'0 1.5rem', marginBottom:'4rem' }}>
-          {STATS.map((s, i) => (
-            <div key={i} className="stat-card" style={{ borderRight: i < STATS.length - 1 ? '1px solid rgba(201,168,76,0.2)' : 'none', padding:'0 1.5rem' }}>
-              <div style={{ fontFamily:'var(--font-playfair),Georgia,serif', fontSize:'1.8rem', fontWeight:700, color:'#c9a84c', lineHeight:1 }}>{s.value}</div>
-              <div style={{ fontSize:'0.8rem', color:'#4a5568', marginTop:'0.3rem', textTransform:'uppercase', letterSpacing:'0.08em' }}>{s.label}</div>
-            </div>
-          ))}
-        </div>
 
         {/* ── Features grid ──────────────────────────────── */}
         <div className="fade-in-5" style={{ position:'relative', zIndex:2, width:'100%', maxWidth:'900px', padding:'0 1.5rem', marginBottom:'4rem' }}>

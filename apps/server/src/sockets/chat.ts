@@ -74,7 +74,7 @@ export function registerChatHandlers(io: Server, socket: Socket) {
       data: { senderId: userId, message: sanitized, type: 'text', isLobby: true },
     }).catch(err => console.error('[Chat] lobby save failed:', err.message))
 
-    io.to(LOBBY_ROOM).emit('lobby:chat:receive', {
+    socket.broadcast.to(LOBBY_ROOM).emit('lobby:chat:receive', {
       senderId: userId,
       senderName: username,
       message: sanitized,

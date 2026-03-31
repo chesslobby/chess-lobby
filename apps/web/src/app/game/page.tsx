@@ -914,8 +914,7 @@ Opening: ${openingName || 'Unknown'}
           .game-layout { flex-direction: column !important; padding: 0 !important; gap: 0 !important; }
           .game-top-bar { padding: 8px 12px !important; font-size: 0.82rem !important; }
           .game-clock { font-size: 1.1rem !important; }
-          .board-controls { flex-wrap: wrap !important; gap: 6px !important; padding: 8px !important; }
-          .board-controls button { min-height: 40px; font-size: 0.8rem !important; }
+          .board-controls { display: none !important; }
           .mobile-tab-bar { display: flex !important; }
         }
         .mobile-tab-bar { display: none; position: fixed; bottom: 0; left: 0; right: 0; height: 56px; background: #111e35; border-top: 1px solid rgba(201,168,76,0.2); z-index: 100; justify-content: stretch; }

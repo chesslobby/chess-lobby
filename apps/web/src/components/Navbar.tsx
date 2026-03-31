@@ -216,12 +216,15 @@ export default function Navbar() {
           padding: 1rem 1.25rem; flex-shrink: 0;
         }
         .hamburger { display: none; }
+        .logo-short { display: none; }
         @media (max-width: 760px) {
           .nav-center { display: none !important; }
           .hamburger { display: flex !important; }
           .nav-play-desktop { display: none !important; }
           .nav-user-text { display: none !important; }
           .nav-notif { display: none !important; }
+          .logo-full { display: none; }
+          .logo-short { display: inline; }
         }
       `}</style>
 
@@ -243,7 +246,8 @@ export default function Navbar() {
               background: 'linear-gradient(135deg, #c9a84c, #e8c86d, #c9a84c)',
               WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text',
             }}>
-              Chess Lobby
+              <span className="logo-full">Chess Lobby</span>
+              <span className="logo-short">Chess</span>
             </span>
           </Link>
 
@@ -316,7 +320,7 @@ export default function Navbar() {
                 >
                   <div
                     className="avatar-ring"
-                    style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1.5px solid rgba(201,168,76,0.35)', color: '#c9a84c', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-playfair), Georgia, serif', transition: 'border-color 0.2s, box-shadow 0.2s', flexShrink: 0 }}
+                    style={{ width: '32px', height: '32px', minWidth: '32px', minHeight: '32px', borderRadius: '50%', background: 'rgba(201,168,76,0.15)', border: '1.5px solid rgba(201,168,76,0.35)', color: '#c9a84c', fontSize: '0.85rem', display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'var(--font-playfair), Georgia, serif', transition: 'border-color 0.2s, box-shadow 0.2s', flexShrink: 0 }}
                   >
                     {(user.username?.[0] || 'G').toUpperCase()}
                   </div>
