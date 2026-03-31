@@ -121,6 +121,9 @@ export default function GamePage() {
   const [showLeftPanel, setShowLeftPanel] = useState(true)
   const [showChatDrawer, setShowChatDrawer] = useState(false)
   const [mobileTab, setMobileTab] = useState<'moves'|'chat'|'voice'|null>(null)
+  const [dragFrom, setDragFrom]   = useState<string|null>(null)
+  const [dragOver, setDragOver]   = useState<string|null>(null)
+  const [touchDragFrom, setTouchDragFrom] = useState<string|null>(null)
 
   // Connection status
   const [socketConnected, setSocketConnected] = useState(false)
@@ -794,6 +797,24 @@ Opening: ${openingName || 'Unknown'}
     }
   }
 
+  function handleDragMove(from: string, to: string) {
+    if (gameOver || !chess || gameWaiting) return
+    if (chess.turn() !== myColor) return
+    const legalDests = (chess.moves({ square: from as any, verbose: true }) as any[]).map((m: any) => m.to)
+    if (!legalDests.includes(to)) return
+    const piece = chess.get(from as any)
+    const isPromotion = piece?.type === 'p' &&
+      ((myColor === 'w' && to[1] === '8') || (myColor === 'b' && to[1] === '1'))
+    if (isPromotion) {
+      setPendingMove({ from, to })
+      setShowPromotion(true)
+      setSelectedSquare(null); setValidMoves([])
+      return
+    }
+    makeMove(from, to, 'q')
+    setSelectedSquare(null); setValidMoves([])
+  }
+
   function sendMessage() {
     if (!chatInput.trim() || !gameInfo) return
     getSocket().emit('chat:send', { gameId: gameInfo.gameId, message: chatInput.trim(), type: 'text' })
@@ -1231,10 +1252,52 @@ Opening: ${openingName || 'Unknown'}
                       const isKingCheck = kingSquare === sq && isInCheck
                       const isBlack     = piece ? piece === piece.toLowerCase() : false
                       const unicode     = piece ? PIECE_UNICODE[piece] ?? piece : null
-                      // Hide the piece at the destination square while it is being animated there
                       const isAnimDest  = animPiece?.toSq === sq
+                      const isMyPieceHere = !gameOver && !gameWaiting && chess && chess.turn() === myColor && piece &&
+                        (myColor === 'w' ? !isBlack : isBlack)
+                      const isDragFrom  = dragFrom === sq
+                      const isDragOver  = dragOver === sq
+                      const isDragValid = !!dragFrom && validMoves.includes(sq)
+                      const squareBg    = isDragOver && isDragValid
+                        ? (isLight ? '#f6f669' : '#baca2b')
+                        : isDragOver && dragFrom && !isDragValid
+                        ? (isLight ? '#ffaaaa' : '#cc5555')
+                        : isLight ? theme.light : theme.dark
                       return (
-                        <div key={`${ri}-${ci}`} className="board-sq" onClick={() => handleSquareClick(ri, ci)} style={{ display:'flex', alignItems:'center', justifyContent:'center', background: isLight ? theme.light : theme.dark, cursor:'pointer', aspectRatio:'1', position:'relative' }}>
+                        <div
+                          key={`${ri}-${ci}`} className="board-sq" data-square={sq}
+                          draggable={!!isMyPieceHere}
+                          onClick={() => handleSquareClick(ri, ci)}
+                          onDragStart={isMyPieceHere ? (e) => {
+                            setDragFrom(sq); setSelectedSquare(sq)
+                            const mvs = chess.moves({ square: sq, verbose: true })
+                            setValidMoves(mvs.map((m) => m.to))
+                            e.dataTransfer.effectAllowed = 'move'
+                            e.dataTransfer.setData('text/plain', sq)
+                          } : undefined}
+                          onDragEnd={() => { setDragFrom(null); setDragOver(null) }}
+                          onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(sq) }}
+                          onDragEnter={(e) => { e.preventDefault(); setDragOver(sq) }}
+                          onDrop={(e) => {
+                            e.preventDefault()
+                            const from = e.dataTransfer.getData('text/plain') || dragFrom
+                            if (from && from !== sq) handleDragMove(from, sq)
+                            setDragFrom(null); setDragOver(null)
+                          }}
+                          onTouchStart={isMyPieceHere ? (e) => {
+                            setTouchDragFrom(sq); setSelectedSquare(sq)
+                            const mvs = chess.moves({ square: sq, verbose: true })
+                            setValidMoves(mvs.map((m) => m.to))
+                          } : undefined}
+                          onTouchEnd={(e) => {
+                            if (!touchDragFrom) return
+                            const t = e.changedTouches[0]
+                            const el = document.elementFromPoint(t.clientX, t.clientY)
+                            const targetSq = el?.closest('[data-square]')?.getAttribute('data-square')
+                            if (targetSq && targetSq !== touchDragFrom) handleDragMove(touchDragFrom, targetSq)
+                            setTouchDragFrom(null); setDragOver(null)
+                          }}
+                          style={{ display:'flex', alignItems:'center', justifyContent:'center', background: squareBg, cursor: isMyPieceHere ? 'grab' : 'pointer', aspectRatio:'1', position:'relative', opacity: isDragFrom ? 0.5 : 1 }}>
                           {/* z1: last move highlight */}
                           {isLastMoveQ && (
                             <div style={{ position:'absolute', inset:0, background:'rgba(255,255,0,0.22)', pointerEvents:'none', zIndex:1 }} />

@@ -107,6 +107,9 @@ export default function PuzzlePage() {
   const [showHint, setShowHint] = useState(false)
   const [hintFrom, setHintFrom] = useState(null)
   const [copyMsg, setCopyMsg] = useState('')
+  const [dragFrom, setDragFrom] = useState(null)
+  const [dragOver, setDragOver] = useState(null)
+  const [touchDragFrom, setTouchDragFrom] = useState(null)
 
   const playerColor = fenTurn(puzzle.fen)
   const flipped = playerColor === 'b'
@@ -219,6 +222,51 @@ export default function PuzzlePage() {
         setSelected(null); setValidMoves([])
       }
     }
+  }
+
+  function handleDragMove(from, to) {
+    if (solved || gaveUp || !chess) return
+    const currentMove = puzzle.moves[moveIdx]
+    const expectedFrom = currentMove.slice(0, 2)
+    const expectedTo = currentMove.slice(2, 4)
+    if (from === expectedFrom && to === expectedTo) {
+      try {
+        chess.move({ from, to, promotion: 'q' })
+        setBoard(parseFen(chess.fen()))
+        flash(to, 'green')
+        setSelected(null); setValidMoves([])
+        const nextIdx = moveIdx + 1
+        if (nextIdx >= puzzle.moves.length) {
+          setSolved(true)
+          const moves = Math.ceil(nextIdx / 2)
+          setTodayMoves(moves)
+          try {
+            const today = todayStr()
+            const lastDate = localStorage.getItem('lastPuzzleDate') || ''
+            const yesterday = new Date(Date.now() - 86400000).toISOString().slice(0, 10)
+            const newStreak = lastDate === yesterday || lastDate === today ? streak + (lastDate === today ? 0 : 1) : 1
+            localStorage.setItem('puzzleStreak', String(newStreak))
+            localStorage.setItem('lastPuzzleDate', today)
+            localStorage.setItem('todayPuzzleSolved', today)
+            localStorage.setItem('todayPuzzleMoves', String(moves))
+            localStorage.setItem('totalPuzzlesSolved', String(parseInt(localStorage.getItem('totalPuzzlesSolved') || '0') + 1))
+            setStreak(newStreak)
+          } catch {}
+        } else {
+          setTimeout(() => {
+            const compMove = puzzle.moves[nextIdx]
+            const cf = compMove.slice(0, 2), ct = compMove.slice(2, 4)
+            try { chess.move({ from: cf, to: ct, promotion: 'q' }); setBoard(parseFen(chess.fen())); flash(ct, 'green') } catch {}
+            setMoveIdx(nextIdx + 1)
+          }, 600)
+          setMoveIdx(nextIdx + 1)
+        }
+      } catch { flash(to, 'red'); setSelected(null); setValidMoves([]) }
+    } else {
+      flash(to, 'red')
+      setWrongAttempts(w => w + 1)
+    }
+    setDragFrom(null); setDragOver(null)
   }
 
   function handleGiveUp() {
@@ -339,19 +387,59 @@ export default function PuzzlePage() {
                     const isValid = validMoves.includes(sq)
                     const isHintFrom = showHint && hintFrom === sq
                     const isFlash = flashSq === sq
+                    const currentFromSq = !solved && !gaveUp && puzzle.moves[moveIdx]
+                      ? puzzle.moves[moveIdx].slice(0, 2) : null
+                    const isDraggable = !!piece && sq === currentFromSq
+                    const isDragFromSq = dragFrom === sq
+                    const isDragOverSq = dragOver === sq
+                    const isDragValid = !!dragFrom && validMoves.includes(sq)
+                    let squareBg = isSelected ? 'rgba(201,168,76,.6)'
+                      : isHintFrom ? 'rgba(52,152,219,.5)'
+                      : isLight ? '#f0d9b5' : '#b58863'
+                    if (isDragOverSq && isDragValid) squareBg = isLight ? '#f6f669' : '#baca2b'
+                    else if (isDragOverSq && dragFrom && !isDragValid) squareBg = isLight ? '#ffaaaa' : '#cc5555'
                     return (
                       <div
-                        key={`${ri}-${fi}`}
+                        key={`${ri}-${fi}`} data-square={sq}
                         className={isFlash ? (flashColor === 'green' ? 'flash-green' : 'flash-red') : ''}
+                        draggable={isDraggable}
                         onClick={() => handleSquareClick(fi, ri)}
+                        onDragStart={isDraggable ? (e) => {
+                          setDragFrom(sq); setSelected(sq)
+                          const mvs = chess.moves({ square: sq, verbose: true })
+                          setValidMoves(mvs.map(m => m.to))
+                          e.dataTransfer.effectAllowed = 'move'
+                          e.dataTransfer.setData('text/plain', sq)
+                        } : undefined}
+                        onDragEnd={() => { setDragFrom(null); setDragOver(null) }}
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(sq) }}
+                        onDragEnter={(e) => { e.preventDefault(); setDragOver(sq) }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          const from = e.dataTransfer.getData('text/plain') || dragFrom
+                          if (from && from !== sq) handleDragMove(from, sq)
+                          setDragFrom(null); setDragOver(null)
+                        }}
+                        onTouchStart={isDraggable ? (e) => {
+                          setTouchDragFrom(sq); setSelected(sq)
+                          const mvs = chess.moves({ square: sq, verbose: true })
+                          setValidMoves(mvs.map(m => m.to))
+                        } : undefined}
+                        onTouchEnd={(e) => {
+                          if (!touchDragFrom) return
+                          const t = e.changedTouches[0]
+                          const el = document.elementFromPoint(t.clientX, t.clientY)
+                          const targetSq = el?.closest('[data-square]')?.getAttribute('data-square')
+                          if (targetSq && targetSq !== touchDragFrom) handleDragMove(touchDragFrom, targetSq)
+                          setTouchDragFrom(null); setDragOver(null)
+                        }}
                         style={{
                           position: 'absolute',
                           left: `${fi * 12.5}%`, top: `${ri * 12.5}%`,
                           width: '12.5%', height: '12.5%',
-                          background: isSelected ? 'rgba(201,168,76,.6)'
-                            : isHintFrom ? 'rgba(52,152,219,.5)'
-                            : isLight ? '#f0d9b5' : '#b58863',
-                          cursor: solved || gaveUp ? 'default' : 'pointer',
+                          background: squareBg,
+                          cursor: isDraggable ? 'grab' : solved || gaveUp ? 'default' : 'pointer',
+                          opacity: isDragFromSq ? 0.5 : 1,
                           display: 'flex', alignItems: 'center', justifyContent: 'center',
                           fontSize: 'clamp(1rem,2.8vw,1.8rem)', lineHeight: 1, userSelect: 'none',
                           color: piece && piece[0] === 'b' ? '#1a0a00' : '#fff',

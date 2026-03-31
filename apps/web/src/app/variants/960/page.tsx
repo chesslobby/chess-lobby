@@ -92,6 +92,9 @@ export default function Chess960Page() {
   const [gameResult, setGameResult] = useState(null)
   const [gamePgn, setGamePgn] = useState('')
   const [boardSize, setBoardSize] = useState(480)
+  const [dragFrom, setDragFrom] = useState(null)
+  const [dragOver, setDragOver] = useState(null)
+  const [touchDragFrom, setTouchDragFrom] = useState(null)
   const moveListRef = useRef(null)
 
   useEffect(() => {
@@ -194,6 +197,18 @@ export default function Chess960Page() {
         setSelected(sq); setLegalTargets(mvs.map(m => m.to))
       }
     }
+  }
+
+  function handleDragMove(from, to) {
+    const chess = chessRef.current
+    if (!chess || botThinking || promoState || gameResult) return
+    if (chess.turn() !== playerColor) return
+    const legal = chess.moves({ square: from, verbose: true }).map(m => m.to)
+    if (!legal.includes(to)) return
+    const piece = chess.get(from)
+    const isPromo = piece?.type === 'p' && ((playerColor === 'w' && to[1] === '8') || (playerColor === 'b' && to[1] === '1'))
+    if (isPromo) { setPromoState({ from, to }); setSelected(null); setLegalTargets([]); return }
+    doMove(from, to, undefined)
   }
 
   function doMove(from, to, promo) {
@@ -404,6 +419,13 @@ export default function Chess960Page() {
                     if (isLastFrom || isLastTo) bg = isLight ? '#cdd26a' : '#aaa23a'
                     if (isSel) bg = '#7fc97f'
                     if (isKingCheck) bg = '#e74c3c'
+                    const isMyPieceHere = !botThinking && !promoState && !gameResult &&
+                      cell?.c === playerColor && chessRef.current?.turn() === playerColor
+                    const isDragFrom = dragFrom === sq
+                    const isDragOver = dragOver === sq
+                    const isDragValid = !!dragFrom && legalTargets.includes(sq)
+                    if (isDragOver && isDragValid) bg = isLight ? '#f6f669' : '#baca2b'
+                    else if (isDragOver && dragFrom && !isDragValid) bg = isLight ? '#ffaaaa' : '#cc5555'
 
                     const pieceKey = cell?.p && cell?.c ? cell.c + cell.p : null
                     const pieceChar = pieceKey ? PIECE_MAP[pieceKey] : null
@@ -411,7 +433,39 @@ export default function Chess960Page() {
                     const sqPx = Math.max(36, Math.floor(boardSize / 8))
                     const pieceFontPx = Math.round(sqPx * 0.7)
                     return (
-                      <div key={c} className="bsq" onClick={() => handleSquareClick(sq)} style={{ width: sqPx, height: sqPx, background: bg }}>
+                      <div key={c} className="bsq" data-square={sq}
+                        draggable={!!isMyPieceHere}
+                        onClick={() => handleSquareClick(sq)}
+                        onDragStart={isMyPieceHere ? (e) => {
+                          setDragFrom(sq); setSelected(sq)
+                          const mvs = chessRef.current.moves({ square: sq, verbose: true })
+                          setLegalTargets(mvs.map(m => m.to))
+                          e.dataTransfer.effectAllowed = 'move'
+                          e.dataTransfer.setData('text/plain', sq)
+                        } : undefined}
+                        onDragEnd={() => { setDragFrom(null); setDragOver(null) }}
+                        onDragOver={(e) => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOver(sq) }}
+                        onDragEnter={(e) => { e.preventDefault(); setDragOver(sq) }}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          const from = e.dataTransfer.getData('text/plain') || dragFrom
+                          if (from && from !== sq) handleDragMove(from, sq)
+                          setDragFrom(null); setDragOver(null)
+                        }}
+                        onTouchStart={isMyPieceHere ? (e) => {
+                          setTouchDragFrom(sq); setSelected(sq)
+                          const mvs = chessRef.current.moves({ square: sq, verbose: true })
+                          setLegalTargets(mvs.map(m => m.to))
+                        } : undefined}
+                        onTouchEnd={(e) => {
+                          if (!touchDragFrom) return
+                          const t = e.changedTouches[0]
+                          const el = document.elementFromPoint(t.clientX, t.clientY)
+                          const targetSq = el?.closest('[data-square]')?.getAttribute('data-square')
+                          if (targetSq && targetSq !== touchDragFrom) handleDragMove(touchDragFrom, targetSq)
+                          setTouchDragFrom(null); setDragOver(null)
+                        }}
+                        style={{ width: sqPx, height: sqPx, background: bg, opacity: isDragFrom ? 0.5 : 1, cursor: isMyPieceHere ? 'grab' : 'default' }}>
                         {isLegal && (
                           <div style={{ position: 'absolute', width: hasPiece ? '88%' : '32%', height: hasPiece ? '88%' : '32%', borderRadius: '50%', background: hasPiece ? 'transparent' : 'rgba(0,0,0,0.22)', border: hasPiece ? '3px solid rgba(0,0,0,0.28)' : 'none', zIndex: 1, pointerEvents: 'none' }} />
                         )}

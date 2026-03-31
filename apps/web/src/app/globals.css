@@ -247,3 +247,15 @@ body {
   box-sizing: border-box;
   overflow: hidden;
 }
+
+/* ── Drag & drop chess piece support ────────────────────── */
+.chess-board {
+  user-select: none;
+  -webkit-user-select: none;
+}
+[draggable=true] {
+  cursor: grab;
+}
+[draggable=true]:active {
+  cursor: grabbing;
+}
