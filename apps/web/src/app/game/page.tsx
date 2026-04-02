@@ -266,6 +266,8 @@ export default function GamePage() {
     // The server guards against double-starting (startedGames Set), so this is safe.
     socket.on('connect', () => {
       const currentInfo = gameInfoRef.current
+      console.log('[Socket] Connected! ID:', socket.id)
+      console.log('[Socket] GameID:', currentInfo?.gameId)
       console.log('[Socket] Reconnected — re-emitting game:ready for', currentInfo?.gameId)
       setSocketConnected(true)
       if (currentInfo?.gameId) {
@@ -300,6 +302,8 @@ export default function GamePage() {
     })
 
     socket.on('game:move', ({ from: mFrom, to: mTo, fen: moveFen, clocks: c, san }: any) => {
+      console.log('[CLIENT] game:move received! Payload:', JSON.stringify({ from: mFrom, to: mTo, san, fen: moveFen }).substring(0, 100))
+      console.log('[CLIENT] Current FEN before update:', fenRef.current?.substring?.(0, 40))
       console.log('[Move] Received:', mFrom, '->', mTo, '| FEN:', moveFen?.substring?.(0, 30))
 
       if (!moveFen) {
@@ -348,6 +352,7 @@ export default function GamePage() {
       setBoardKey(k => k + 1)  // force board grid re-render
       if (c) setClocks(c)
       if (mFrom && mTo) setLastMove({ from: mFrom, to: mTo })
+      console.log('[CLIENT] State updated. New FEN:', moveFen?.substring?.(0, 40))
       setSelectedSquare(null); setValidMoves([])
 
       if (san) {
@@ -729,7 +734,9 @@ Opening: ${openingName || 'Unknown'}
     const pieceObj = chess?.get(from as any)
     if (pieceObj) animateMove(from, to, getPieceSymbol(pieceObj.type, pieceObj.color))
 
+    console.log('[CLIENT] Sending move:', from, '->', to)
     getSocket().emit('game:move', { gameId: gameInfo?.gameId, from, to, promotion })
+    console.log('[CLIENT] Move emitted to server')
     try {
       const { Chess } = require('chess.js')
       const newChess = new Chess()

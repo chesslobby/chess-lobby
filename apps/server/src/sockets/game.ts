@@ -126,6 +126,9 @@ export function registerGameHandlers(io: Server, socket: Socket) {
   socket.on('game:move', async ({ gameId, from, to, promotion }: {
     gameId: string; from: string; to: string; promotion?: string
   }) => {
+    console.log(`[Move] Received from ${socket.data.username}: ${from}-${to}`)
+    console.log(`[Move] Room ${gameId} has ${io.sockets.adapter.rooms.get(gameId)?.size ?? 0} sockets`)
+
     const game = activeGames.get(gameId)
     if (!game) return
 
@@ -136,6 +139,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
       const move = game.chess.move({ from, to, promotion: promotion ?? 'q' })
 
       const moveFen = game.chess.fen()
+      console.log(`[Move] Broadcasting FEN: ${moveFen.substring(0, 40)}`)
 
       // Broadcast move to everyone in the room (opponent + spectators + sender for FEN/clock sync)
       io.to(gameId).emit('game:move', {
@@ -147,7 +151,10 @@ export function registerGameHandlers(io: Server, socket: Socket) {
         turn: game.chess.turn(),
         clocks: game.clocks,
       })
-      console.log(`[Move] Broadcast to room ${gameId}: ${move.san} | room size: ${io.sockets.adapter.rooms.get(gameId)?.size ?? 0}`)
+
+      const roomSockets = io.sockets.adapter.rooms.get(gameId)
+      console.log(`[Move] Emitted game:move to room. Sockets in room:`, [...(roomSockets || [])])
+      console.log(`[Move] Broadcast to room ${gameId}: ${move.san} | room size: ${roomSockets?.size ?? 0}`)
 
       game.pgn.push(move.san)
 
