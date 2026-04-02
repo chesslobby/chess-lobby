@@ -40,6 +40,8 @@ interface ActiveGame {
   chess: any
   whiteId: string
   blackId: string
+  whiteName: string
+  blackName: string
   whiteSocketId: string
   blackSocketId: string
   clocks: { w: number; b: number }   // ms remaining
@@ -65,7 +67,7 @@ export function registerGameHandlers(io: Server, socket: Socket) {
   socket.on('game:ready', async ({ gameId }: { gameId: string }) => {
     // JOIN the socket.io room — await so the join completes before we check room size
     await socket.join(gameId)
-    console.log(`[Room] ${socket.data.username} joined room ${gameId} | room size: ${io.sockets.adapter.rooms.get(gameId)?.size ?? 0}`)
+    console.log(`[Room] ${socket.data.username} joined ${gameId}. Size: ${io.sockets.adapter.rooms.get(gameId)?.size ?? 0}`)
 
     // Initialize the set if it doesn't exist
     if (!readyPlayers.has(gameId)) {
@@ -106,19 +108,14 @@ export function registerGameHandlers(io: Server, socket: Socket) {
         fen:    game.chess.fen(),
         turn:   game.chess.turn(),
         clocks: game.clocks,
-        white:  { id: game.whiteId },
-        black:  { id: game.blackId },
+        white:  { id: game.whiteId, username: game.whiteName },
+        black:  { id: game.blackId, username: game.blackName },
       }
 
-      // Emit to each player's current socket individually (handles reconnected sockets)
-      const whiteSocket = io.sockets.sockets.get(game.whiteSocketId)
-      const blackSocket = io.sockets.sockets.get(game.blackSocketId)
-      if (whiteSocket) whiteSocket.emit('game:start', startPayload)
-      if (blackSocket) blackSocket.emit('game:start', startPayload)
-      // Room broadcast as belt-and-suspenders for spectators / edge cases
+      // Single room broadcast — both players are already joined via await socket.join(gameId)
       io.to(gameId).emit('game:start', startPayload)
 
-      console.log(`[Game] Started ${gameId} | white socket ok: ${!!whiteSocket} | black socket ok: ${!!blackSocket}`)
+      console.log(`[Game] Started ${gameId}. Room size: ${io.sockets.adapter.rooms.get(gameId)?.size ?? 0}`)
     }
   })
 
@@ -234,6 +231,8 @@ async function initActiveGame(io: Server, socket: Socket, gameId: string) {
       timeControl:   true,
       whiteEloBefore: true,
       blackEloBefore: true,
+      whitePlayer: { select: { username: true } },
+      blackPlayer: { select: { username: true } },
     },
   })
 
@@ -248,6 +247,8 @@ async function initActiveGame(io: Server, socket: Socket, gameId: string) {
     chess:         new Chess(),
     whiteId:       dbGame.whitePlayerId,
     blackId:       dbGame.blackPlayerId,
+    whiteName:     (dbGame as any).whitePlayer?.username ?? '',
+    blackName:     (dbGame as any).blackPlayer?.username ?? '',
     whiteSocketId: socket.data.userId === dbGame.whitePlayerId ? socket.id : '',
     blackSocketId: socket.data.userId === dbGame.blackPlayerId ? socket.id : '',
     clocks: {

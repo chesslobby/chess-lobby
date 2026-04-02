@@ -606,9 +606,9 @@ Opening: ${openingName || 'Unknown'}
         showToast('Opponent left voice chat', 'info')
       })
 
-      // Join voice — retry up to 3 times with 8s gaps until we get a response
+      // Join voice — retry up to 5 times with 5s gaps until we get a response
       let voiceJoinAttempts = 0
-      const MAX_VOICE_ATTEMPTS = 3
+      const MAX_VOICE_ATTEMPTS = 5
       let voiceRetryTimer: ReturnType<typeof setTimeout> | null = null
 
       function emitVoiceJoin() {
@@ -622,7 +622,7 @@ Opening: ${openingName || 'Unknown'}
               console.log('[Voice] no response, retrying...')
               emitVoiceJoin()
             }
-          }, 8000)
+          }, 5000)
         }
       }
 
