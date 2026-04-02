@@ -139,6 +139,7 @@ export default function GamePage() {
   const gameStartedRef      = useRef(false)   // guard: only process game:start once
   const gameReadyEmittedRef = useRef(false)   // guard: don't re-emit game:ready on reconnect after start
   const gameInfoRef         = useRef<any>(null) // stable ref so connect handler always has current gameInfo
+  const voiceStateRef       = useRef('idle')  // stale-closure-safe voice state for retry logic
 
   // New feature states
   const [showPromotion, setShowPromotion]   = useState(false)
@@ -228,6 +229,12 @@ export default function GamePage() {
     setStatusMsg(msg)
     if (statusTimerRef.current) clearTimeout(statusTimerRef.current)
     statusTimerRef.current = setTimeout(() => setStatusMsg(''), 5000)
+  }
+
+  // ── Voice state helper (keeps ref in sync with state) ────────
+  function updateVoiceState(s: 'idle' | 'connecting' | 'connected' | 'error') {
+    voiceStateRef.current = s
+    setVoiceState(s)
   }
 
   // ── Game init + socket ───────────────────────────────────────
@@ -482,12 +489,12 @@ Opening: ${openingName || 'Unknown'}
 
     if (!navigator.mediaDevices?.getUserMedia) {
       console.error('[Voice] getUserMedia not supported')
-      setVoiceState('error')
+      updateVoiceState('error')
       return
     }
 
     try {
-      setVoiceState('connecting')
+      updateVoiceState('connecting')
       console.log('[Voice] requesting microphone...')
 
       let stream: MediaStream
@@ -499,7 +506,7 @@ Opening: ${openingName || 'Unknown'}
         console.log('[Voice] microphone granted, tracks:', stream.getTracks().length)
       } catch (err: any) {
         console.error('[Voice] microphone error:', err.name, err.message)
-        setVoiceState('error')
+        updateVoiceState('error')
         showToast('Microphone access denied', 'error')
         return
       }
@@ -522,7 +529,7 @@ Opening: ${openingName || 'Unknown'}
           remoteAudioRef.current.srcObject = event.streams[0]
           remoteAudioRef.current.play().catch(console.error)
         }
-        setVoiceState('connected')
+        updateVoiceState('connected')
       }
 
       pc.onicecandidate = (event) => {
@@ -533,9 +540,9 @@ Opening: ${openingName || 'Unknown'}
 
       pc.onconnectionstatechange = () => {
         console.log('WebRTC connection state:', pc.connectionState)
-        if (pc.connectionState === 'connected') setVoiceState('connected')
-        else if (pc.connectionState === 'failed') setVoiceState('error')
-        else if (pc.connectionState === 'disconnected') setVoiceState('connecting')
+        if (pc.connectionState === 'connected') updateVoiceState('connected')
+        else if (pc.connectionState === 'failed') updateVoiceState('error')
+        else if (pc.connectionState === 'disconnected') updateVoiceState('connecting')
       }
 
       pc.oniceconnectionstatechange = () => {
@@ -602,53 +609,43 @@ Opening: ${openingName || 'Unknown'}
 
       socket.off('voice:peer-left')
       socket.on('voice:peer-left', () => {
-        setVoiceState('idle')
+        updateVoiceState('idle')
         showToast('Opponent left voice chat', 'info')
       })
 
-      // Join voice — retry up to 5 times with 5s gaps until we get a response
+      // Join voice — retry every 4s up to 6 times until signaling arrives
       let voiceJoinAttempts = 0
-      const MAX_VOICE_ATTEMPTS = 5
-      let voiceRetryTimer: ReturnType<typeof setTimeout> | null = null
-
-      function emitVoiceJoin() {
+      const MAX_VOICE_ATTEMPTS = 6
+      const retryInterval = setInterval(() => {
+        if (voiceJoinAttempts >= MAX_VOICE_ATTEMPTS || voiceStateRef.current === 'connected') {
+          clearInterval(retryInterval)
+          return
+        }
         voiceJoinAttempts++
         console.log(`[Voice] voice:join attempt ${voiceJoinAttempts}/${MAX_VOICE_ATTEMPTS} for`, info.gameId)
         socket.emit('voice:join', { gameId: info.gameId })
+      }, 4000)
 
-        if (voiceJoinAttempts < MAX_VOICE_ATTEMPTS) {
-          voiceRetryTimer = setTimeout(() => {
-            if (peerRef.current?.connectionState !== 'connected') {
-              console.log('[Voice] no response, retrying...')
-              emitVoiceJoin()
-            }
-          }, 5000)
-        }
-      }
+      // Immediate first attempt
+      voiceJoinAttempts++
+      console.log(`[Voice] voice:join attempt ${voiceJoinAttempts}/${MAX_VOICE_ATTEMPTS} for`, info.gameId)
+      socket.emit('voice:join', { gameId: info.gameId })
 
-      // Clear retry timer when signaling arrives
-      function clearVoiceRetry() { if (voiceRetryTimer) { clearTimeout(voiceRetryTimer); voiceRetryTimer = null } }
-      socket.once('voice:initiate', clearVoiceRetry)
-      socket.once('voice:offer',    clearVoiceRetry)
+      // Stop retrying once signaling arrives
+      socket.once('voice:initiate', () => clearInterval(retryInterval))
+      socket.once('voice:offer',    () => clearInterval(retryInterval))
 
-      // Re-emit if socket reconnects while still not connected
+      // Re-emit if socket reconnects while still not voice-connected
       socket.on('connect', () => {
-        if (peerRef.current?.connectionState !== 'connected') {
+        if (voiceStateRef.current !== 'connected') {
           console.log('[Voice] socket reconnected mid-voice, re-emitting voice:join')
-          setTimeout(() => emitVoiceJoin(), 500)
+          setTimeout(() => socket.emit('voice:join', { gameId: info.gameId }), 500)
         }
       })
 
-      if (!socket.connected) {
-        console.log('[Voice] socket not connected, waiting for reconnect...')
-        socket.once('connect', () => emitVoiceJoin())
-      } else {
-        emitVoiceJoin()
-      }
-
     } catch (err: any) {
       console.error('[Voice] unexpected error:', err)
-      setVoiceState('error')
+      updateVoiceState('error')
     }
   }
 
@@ -661,7 +658,7 @@ Opening: ${openingName || 'Unknown'}
     peerRef.current?.close()
     peerRef.current = null
     setLocalStream(null)
-    setVoiceState('idle')
+    updateVoiceState('idle')
     setIsSpeaking(false)
     setIsOpponentSpeaking(false)
     socket.emit('voice:leave', { gameId: gameInfo?.gameId })

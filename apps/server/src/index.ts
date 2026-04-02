@@ -73,8 +73,8 @@ io.on('connection', (socket) => {
   registerSpectateHandlers(io, socket)
   registerArenaHandlers(io, socket)
   socket.onAny((event, ...args) => {
-    if (event.startsWith('voice:')) {
-      console.log(`[Voice DEBUG] ${socket.data.username ?? socket.data.userId} → ${event}`, JSON.stringify(args).slice(0, 120))
+    if (event.startsWith('voice:') || event.startsWith('game:')) {
+      console.log(`[DEBUG] ${socket.data.username ?? socket.data.userId} → ${event}`, JSON.stringify(args).slice(0, 120))
     }
   })
   socket.on('disconnect', () => {
